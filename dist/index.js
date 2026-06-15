@@ -33060,6 +33060,14 @@ async function fetchText(url, token) {
     if (!resp.ok) {
         throw new Error(`HTTP ${resp.status} for ${url}`);
     }
+    // An HTML body here is a rate-limit/error page, not the checksums file.
+    // Treat it as a transient failure so withRetry() can retry it, instead of
+    // letting parseChecksums() silently miss and fail as "checksum not found".
+    const contentType = resp.headers.get('content-type') ?? '';
+    if (contentType.includes('html')) {
+        throw new Error(`Unexpected content-type "${contentType}" from ${url} ` +
+            `(likely a rate-limit/HTML error page — pass repo-token to authenticate).`);
+    }
     return resp.text();
 }
 /** GitHub-backed ReleaseApi implementation. */
@@ -33100,6 +33108,7 @@ function createReleaseApi(token) {
 
 
 
+
 /**
  * Parse a `task_checksums.txt` body and return the SHA256 for the given asset.
  * Lines look like: "<64-hex>  task_linux_amd64.tar.gz" (optionally "*name").
@@ -33124,11 +33133,14 @@ function sha256File(filePath) {
     hash.update(external_node_fs_namespaceObject.readFileSync(filePath));
     return hash.digest('hex');
 }
-/** Verify a file against an expected SHA256, throwing on mismatch (FR-5). */
+/**
+ * Verify a file against an expected SHA256, throwing on mismatch (FR-5).
+ * A mismatch is a permanent, security-relevant failure (never retried).
+ */
 function verifyChecksum(filePath, expected) {
     const actual = sha256File(filePath);
     if (actual.toLowerCase() !== expected.toLowerCase()) {
-        throw new Error(`Checksum mismatch: expected ${expected}, got ${actual}.`);
+        throw new PermanentError(`Checksum mismatch: expected ${expected}, got ${actual}.`);
     }
 }
 
@@ -33153,6 +33165,7 @@ const ARCH_MAP = {
     arm64: 'arm64',
     arm: 'arm',
     ia32: '386',
+    riscv64: 'riscv64',
 };
 /**
  * Supported arch per OS, mirroring the assets published by go-task
