@@ -28,6 +28,11 @@ describe('resolveAsset', () => {
     expect(resolveAsset('linux', 'x64', 'arm64').assetName).toBe('task_linux_arm64.tar.gz');
   });
 
+  it('auto-detects linux/riscv64 without an override', () => {
+    // process.arch on a riscv64 runner is 'riscv64'; it must map to the asset.
+    expect(resolveAsset('linux', 'riscv64').assetName).toBe('task_linux_riscv64.tar.gz');
+  });
+
   it('throws on an unsupported OS', () => {
     expect(() => resolveAsset('aix', 'x64')).toThrow(/Unsupported OS/);
   });

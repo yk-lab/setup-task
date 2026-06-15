@@ -26,6 +26,7 @@ const ARCH_MAP: Record<string, string> = {
   arm64: 'arm64',
   arm: 'arm',
   ia32: '386',
+  riscv64: 'riscv64',
 };
 
 /**
