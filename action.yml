@@ -1,0 +1,41 @@
+name: "Setup Task"
+description: "Install the Task (go-task) binary — Node 24, authenticated downloads, checksum-verified, cached."
+author: "yk-lab"
+
+branding:
+  icon: "check-square"
+  color: "blue"
+
+inputs:
+  version:
+    description: "Task version to install: exact (3.51.1), semver range (3.x, ^3.50) or 'latest'."
+    required: false
+    default: "latest"
+  repo-token:
+    description: "Token used to authenticate GitHub API/asset requests (avoids rate-limit failures)."
+    required: false
+    default: ${{ github.token }}
+  architecture:
+    description: "Override the CPU architecture (e.g. amd64, arm64). Defaults to the runner's architecture."
+    required: false
+    default: ""
+  check-latest:
+    description: "For semver ranges, always re-resolve the newest matching release instead of a cached one."
+    required: false
+    default: "false"
+  skip-checksum:
+    description: "Disable SHA256 checksum verification of the downloaded archive (NOT recommended)."
+    required: false
+    default: "false"
+
+outputs:
+  version:
+    description: "The resolved Task version that was installed (e.g. 3.51.1)."
+  task-path:
+    description: "Absolute path to the installed task executable."
+  cache-hit:
+    description: "Whether the tool was restored from the runner tool cache ('true'/'false')."
+
+runs:
+  using: "node24"
+  main: "dist/index.js"
