@@ -1,0 +1,10 @@
+node_modules/
+coverage/
+*.log
+.DS_Store
+
+# Personal Claude Code overrides (shared .claude/settings.json IS committed)
+.claude/settings.local.json
+
+# NOTE: dist/ is intentionally committed — GitHub Actions run the bundled
+# dist/index.js directly from the repo, so it must be checked in.
