@@ -53,6 +53,16 @@ export async function fetchText(url: string, token?: string): Promise<string> {
   if (!resp.ok) {
     throw new Error(`HTTP ${resp.status} for ${url}`);
   }
+  // An HTML body here is a rate-limit/error page, not the checksums file.
+  // Treat it as a transient failure so withRetry() can retry it, instead of
+  // letting parseChecksums() silently miss and fail as "checksum not found".
+  const contentType = resp.headers.get('content-type') ?? '';
+  if (contentType.includes('html')) {
+    throw new Error(
+      `Unexpected content-type "${contentType}" from ${url} ` +
+        `(likely a rate-limit/HTML error page — pass repo-token to authenticate).`,
+    );
+  }
   return resp.text();
 }
 
