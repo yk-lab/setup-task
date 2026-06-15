@@ -1,5 +1,9 @@
 # setup-task
 
+[![CI](https://github.com/yk-lab/setup-task/actions/workflows/ci.yml/badge.svg)](https://github.com/yk-lab/setup-task/actions/workflows/ci.yml)
+[![Self-test](https://github.com/yk-lab/setup-task/actions/workflows/self-test.yml/badge.svg)](https://github.com/yk-lab/setup-task/actions/workflows/self-test.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
+
 A GitHub Action that installs the [Task](https://github.com/go-task/task) (go-task) binary and puts it on `PATH`.
 
 Built as a modern, reliable alternative to `arduino/setup-task`:
