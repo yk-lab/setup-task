@@ -5,6 +5,7 @@ import * as tc from '@actions/tool-cache';
 import { DEFAULT_RETRIES, TOOL_NAME, releaseDownloadUrl } from './constants';
 import { downloadAsset, withRetry } from './download';
 import { fetchChecksum, verifyChecksum } from './checksum';
+import { errorMessage } from './errors';
 import { createReleaseApi } from './github';
 import { extract } from './install';
 import { resolveAsset } from './platform';
@@ -37,7 +38,7 @@ async function run(): Promise<void> {
 
   // 2. Tool-cache lookup (FR-7).
   let toolDir = tc.find(TOOL_NAME, version, asset.arch);
-  let cacheHit = Boolean(toolDir);
+  const cacheHit = Boolean(toolDir);
 
   if (cacheHit) {
     core.info(`Restored task ${version} from tool cache.`);
@@ -73,7 +74,6 @@ async function run(): Promise<void> {
     // 5. Extract + cache (FR-6/FR-7).
     const extractedDir = await extract(archivePath, asset.ext);
     toolDir = await tc.cacheDir(extractedDir, TOOL_NAME, version, asset.arch);
-    cacheHit = false;
   }
 
   // 6. Ensure executable + expose on PATH (FR-6/FR-8).
@@ -95,5 +95,5 @@ async function run(): Promise<void> {
 }
 
 run().catch((err: unknown) => {
-  core.setFailed(err instanceof Error ? err.message : String(err));
+  core.setFailed(errorMessage(err));
 });

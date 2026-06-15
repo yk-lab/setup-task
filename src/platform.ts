@@ -57,7 +57,7 @@ export function resolveAsset(
   }
 
   const override = archOverride?.trim();
-  const arch = override && override.length > 0 ? override : ARCH_MAP[nodeArch];
+  const arch = override || ARCH_MAP[nodeArch];
   if (!arch) {
     throw new Error(
       `Unsupported architecture "${nodeArch}". Pass the "architecture" input to override.`,

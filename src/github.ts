@@ -21,48 +21,46 @@ function githubHeaders(token?: string): Record<string, string> {
   return headers;
 }
 
-/**
- * Fetch JSON, guarding against the rate-limit HTML error pages that cause the
- * "Unicorn" failures in unauthenticated setups (FR-3). A non-JSON body is
- * treated as a transient failure so withRetry() can retry it.
- */
-export async function fetchJson<T>(url: string, token?: string): Promise<T> {
+/** Fetch with GitHub auth, mapping 404 -> PermanentError and other non-OK -> Error. */
+async function fetchOk(url: string, token?: string): Promise<Response> {
   const resp = await fetch(url, { headers: githubHeaders(token) });
   if (resp.status === 404) {
     throw new PermanentError(`Not found (404): ${url}`);
   }
   if (!resp.ok) {
-    throw new Error(`GitHub API responded ${resp.status} for ${url}`);
+    throw new Error(`GitHub responded ${resp.status} for ${url}`);
   }
+  return resp;
+}
+
+/**
+ * Reject a response whose body isn't the expected type — typically the HTML
+ * rate-limit/error page ("Unicorn") that unauthenticated requests get (FR-3).
+ * Throwing keeps it a transient failure so withRetry() retries, instead of the
+ * body being parsed as valid (which would surface as a confusing downstream
+ * failure, e.g. "checksum not found").
+ */
+function guardContentType(resp: Response, url: string, isExpected: (contentType: string) => boolean): void {
   const contentType = resp.headers.get('content-type') ?? '';
-  if (!contentType.includes('json')) {
+  if (!isExpected(contentType)) {
     throw new Error(
       `Unexpected content-type "${contentType}" from ${url} ` +
         `(likely a rate-limit/HTML error page — pass repo-token to authenticate).`,
     );
   }
+}
+
+/** Fetch and parse JSON, requiring a JSON content-type (FR-3). */
+export async function fetchJson<T>(url: string, token?: string): Promise<T> {
+  const resp = await fetchOk(url, token);
+  guardContentType(resp, url, (contentType) => contentType.includes('json'));
   return (await resp.json()) as T;
 }
 
-/** Fetch a text body (used for the checksums file). */
+/** Fetch a text body (the checksums file), rejecting HTML error pages (FR-3). */
 export async function fetchText(url: string, token?: string): Promise<string> {
-  const resp = await fetch(url, { headers: githubHeaders(token) });
-  if (resp.status === 404) {
-    throw new PermanentError(`Not found (404): ${url}`);
-  }
-  if (!resp.ok) {
-    throw new Error(`HTTP ${resp.status} for ${url}`);
-  }
-  // An HTML body here is a rate-limit/error page, not the checksums file.
-  // Treat it as a transient failure so withRetry() can retry it, instead of
-  // letting parseChecksums() silently miss and fail as "checksum not found".
-  const contentType = resp.headers.get('content-type') ?? '';
-  if (contentType.includes('html')) {
-    throw new Error(
-      `Unexpected content-type "${contentType}" from ${url} ` +
-        `(likely a rate-limit/HTML error page — pass repo-token to authenticate).`,
-    );
-  }
+  const resp = await fetchOk(url, token);
+  guardContentType(resp, url, (contentType) => !contentType.includes('html'));
   return resp.text();
 }
 

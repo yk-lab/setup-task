@@ -1,7 +1,7 @@
 import * as core from '@actions/core';
 import * as tc from '@actions/tool-cache';
 import { DEFAULT_RETRIES, DEFAULT_RETRY_BASE_MS } from './constants';
-import { PermanentError } from './errors';
+import { PermanentError, errorMessage } from './errors';
 
 export interface RetryOptions {
   retries?: number;
@@ -11,10 +11,6 @@ export interface RetryOptions {
 
 const sleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
-
-function message(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
-}
 
 /** A 404 from tool-cache surfaces as an HTTPError with httpStatusCode. */
 function isPermanent(err: unknown): boolean {
@@ -45,7 +41,7 @@ export async function withRetry<T>(fn: () => Promise<T>, opts: RetryOptions = {}
       }
       const delay = baseMs * 2 ** (attempt - 1);
       core.warning(
-        `${name} failed (attempt ${attempt}/${retries + 1}): ${message(err)}. ` +
+        `${name} failed (attempt ${attempt}/${retries + 1}): ${errorMessage(err)}. ` +
           `Retrying in ${delay}ms...`,
       );
       await sleep(delay);
