@@ -4,6 +4,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { parseChecksums, sha256File, verifyChecksum } from '../src/checksum';
+import { PermanentError } from '../src/errors';
 
 describe('parseChecksums', () => {
   const sample = [
@@ -45,7 +46,8 @@ describe('sha256File / verifyChecksum', () => {
     expect(() => verifyChecksum(tmp, expected.toUpperCase())).not.toThrow();
   });
 
-  it('throws on a checksum mismatch', () => {
+  it('throws PermanentError on a checksum mismatch (never retried)', () => {
     expect(() => verifyChecksum(tmp, 'f'.repeat(64))).toThrow(/Checksum mismatch/);
+    expect(() => verifyChecksum(tmp, 'f'.repeat(64))).toThrow(PermanentError);
   });
 });

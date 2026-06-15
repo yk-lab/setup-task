@@ -1,6 +1,7 @@
 import * as crypto from 'node:crypto';
 import * as fs from 'node:fs';
 import { CHECKSUMS_ASSET, releaseDownloadUrl } from './constants';
+import { PermanentError } from './errors';
 import { fetchText } from './github';
 
 /**
@@ -34,10 +35,13 @@ export function sha256File(filePath: string): string {
   return hash.digest('hex');
 }
 
-/** Verify a file against an expected SHA256, throwing on mismatch (FR-5). */
+/**
+ * Verify a file against an expected SHA256, throwing on mismatch (FR-5).
+ * A mismatch is a permanent, security-relevant failure (never retried).
+ */
 export function verifyChecksum(filePath: string, expected: string): void {
   const actual = sha256File(filePath);
   if (actual.toLowerCase() !== expected.toLowerCase()) {
-    throw new Error(`Checksum mismatch: expected ${expected}, got ${actual}.`);
+    throw new PermanentError(`Checksum mismatch: expected ${expected}, got ${actual}.`);
   }
 }
