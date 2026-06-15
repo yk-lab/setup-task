@@ -32958,6 +32958,10 @@ class PermanentError extends Error {
         this.name = 'PermanentError';
     }
 }
+/** Coerce an unknown thrown value into a human-readable message string. */
+function errorMessage(err) {
+    return err instanceof Error ? err.message : String(err);
+}
 
 ;// CONCATENATED MODULE: ./src/download.ts
 
@@ -32965,9 +32969,6 @@ class PermanentError extends Error {
 
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-function message(err) {
-    return err instanceof Error ? err.message : String(err);
-}
 /** A 404 from tool-cache surfaces as an HTTPError with httpStatusCode. */
 function isPermanent(err) {
     if (err instanceof PermanentError) {
@@ -32995,7 +32996,7 @@ async function withRetry(fn, opts = {}) {
                 break;
             }
             const delay = baseMs * 2 ** (attempt - 1);
-            core.warning(`${name} failed (attempt ${attempt}/${retries + 1}): ${message(err)}. ` +
+            core.warning(`${name} failed (attempt ${attempt}/${retries + 1}): ${errorMessage(err)}. ` +
                 `Retrying in ${delay}ms...`);
             await sleep(delay);
         }
@@ -33031,43 +33032,41 @@ function githubHeaders(token) {
     }
     return headers;
 }
-/**
- * Fetch JSON, guarding against the rate-limit HTML error pages that cause the
- * "Unicorn" failures in unauthenticated setups (FR-3). A non-JSON body is
- * treated as a transient failure so withRetry() can retry it.
- */
-async function fetchJson(url, token) {
+/** Fetch with GitHub auth, mapping 404 -> PermanentError and other non-OK -> Error. */
+async function fetchOk(url, token) {
     const resp = await fetch(url, { headers: githubHeaders(token) });
     if (resp.status === 404) {
         throw new PermanentError(`Not found (404): ${url}`);
     }
     if (!resp.ok) {
-        throw new Error(`GitHub API responded ${resp.status} for ${url}`);
+        throw new Error(`GitHub responded ${resp.status} for ${url}`);
     }
+    return resp;
+}
+/**
+ * Reject a response whose body isn't the expected type — typically the HTML
+ * rate-limit/error page ("Unicorn") that unauthenticated requests get (FR-3).
+ * Throwing keeps it a transient failure so withRetry() retries, instead of the
+ * body being parsed as valid (which would surface as a confusing downstream
+ * failure, e.g. "checksum not found").
+ */
+function guardContentType(resp, url, isExpected) {
     const contentType = resp.headers.get('content-type') ?? '';
-    if (!contentType.includes('json')) {
+    if (!isExpected(contentType)) {
         throw new Error(`Unexpected content-type "${contentType}" from ${url} ` +
             `(likely a rate-limit/HTML error page — pass repo-token to authenticate).`);
     }
+}
+/** Fetch and parse JSON, requiring a JSON content-type (FR-3). */
+async function fetchJson(url, token) {
+    const resp = await fetchOk(url, token);
+    guardContentType(resp, url, (contentType) => contentType.includes('json'));
     return (await resp.json());
 }
-/** Fetch a text body (used for the checksums file). */
+/** Fetch a text body (the checksums file), rejecting HTML error pages (FR-3). */
 async function fetchText(url, token) {
-    const resp = await fetch(url, { headers: githubHeaders(token) });
-    if (resp.status === 404) {
-        throw new PermanentError(`Not found (404): ${url}`);
-    }
-    if (!resp.ok) {
-        throw new Error(`HTTP ${resp.status} for ${url}`);
-    }
-    // An HTML body here is a rate-limit/error page, not the checksums file.
-    // Treat it as a transient failure so withRetry() can retry it, instead of
-    // letting parseChecksums() silently miss and fail as "checksum not found".
-    const contentType = resp.headers.get('content-type') ?? '';
-    if (contentType.includes('html')) {
-        throw new Error(`Unexpected content-type "${contentType}" from ${url} ` +
-            `(likely a rate-limit/HTML error page — pass repo-token to authenticate).`);
-    }
+    const resp = await fetchOk(url, token);
+    guardContentType(resp, url, (contentType) => !contentType.includes('html'));
     return resp.text();
 }
 /** GitHub-backed ReleaseApi implementation. */
@@ -33187,7 +33186,7 @@ function resolveAsset(platform = process.platform, nodeArch = process.arch, arch
         throw new Error(`Unsupported OS "${platform}". Supported: ${Object.keys(OS_MAP).join(', ')}.`);
     }
     const override = archOverride?.trim();
-    const arch = override && override.length > 0 ? override : ARCH_MAP[nodeArch];
+    const arch = override || ARCH_MAP[nodeArch];
     if (!arch) {
         throw new Error(`Unsupported architecture "${nodeArch}". Pass the "architecture" input to override.`);
     }
@@ -33254,6 +33253,7 @@ function cleanOrThrow(version) {
 
 
 
+
 async function run() {
     const versionSpec = core.getInput('version') || 'latest';
     const token = core.getInput('repo-token') || process.env.GITHUB_TOKEN || '';
@@ -33275,7 +33275,7 @@ async function run() {
     core.info(`Resolved go-task version: ${version}`);
     // 2. Tool-cache lookup (FR-7).
     let toolDir = tool_cache.find(TOOL_NAME, version, asset.arch);
-    let cacheHit = Boolean(toolDir);
+    const cacheHit = Boolean(toolDir);
     if (cacheHit) {
         core.info(`Restored task ${version} from tool cache.`);
     }
@@ -33307,7 +33307,6 @@ async function run() {
         // 5. Extract + cache (FR-6/FR-7).
         const extractedDir = await extract(archivePath, asset.ext);
         toolDir = await tool_cache.cacheDir(extractedDir, TOOL_NAME, version, asset.arch);
-        cacheHit = false;
     }
     // 6. Ensure executable + expose on PATH (FR-6/FR-8).
     const binPath = external_node_path_namespaceObject.join(toolDir, asset.binaryName);
@@ -33327,7 +33326,7 @@ async function run() {
     core.info(`task ${version} is ready at ${binPath}`);
 }
 run().catch((err) => {
-    core.setFailed(err instanceof Error ? err.message : String(err));
+    core.setFailed(errorMessage(err));
 });
 
 })();
