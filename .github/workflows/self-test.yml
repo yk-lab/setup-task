@@ -56,8 +56,8 @@ jobs:
           RESOLVED: ${{ steps.setup.outputs.version }}
           CACHE_HIT: ${{ steps.setup.outputs.cache-hit }}
 
-  checksum-failure:
-    name: Checksum mismatch must fail
+  skip-checksum:
+    name: Install with skip-checksum
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -71,7 +71,10 @@ jobs:
       - run: npm ci
       - run: npm run build
 
-      # Sanity: skip-checksum should still install successfully.
+      # skip-checksum bypasses SHA256 verification and must still install.
+      # (Checksum verification with mismatch detection is covered by the matrix
+      # job above — which installs with verification on — and by the tamper
+      # tests in tests/checksum.test.ts, run by the CI test job.)
       - name: Install with checksum skipped
         uses: ./
         with:
