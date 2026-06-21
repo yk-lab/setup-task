@@ -18,6 +18,11 @@ async function run(): Promise<void> {
   const checkLatest = core.getBooleanInput('check-latest');
   const skipChecksum = core.getBooleanInput('skip-checksum');
 
+  // Mask the token so it can never leak into logs/summaries (NFR-1).
+  if (token) {
+    core.setSecret(token);
+  }
+
   if (!token) {
     core.warning(
       'No GitHub token available; API requests are unauthenticated and may hit ' +
