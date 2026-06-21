@@ -33811,7 +33811,7 @@ function exportVariable(name, val) {
  * ```
  */
 function core_setSecret(secret) {
-    issueCommand('add-mask', {}, secret);
+    command_issueCommand('add-mask', {}, secret);
 }
 /**
  * Prepends inputPath to the PATH (for this action and future actions)
@@ -35183,6 +35183,10 @@ async function run() {
     const archOverride = getInput('architecture');
     const checkLatest = getBooleanInput('check-latest');
     const skipChecksum = getBooleanInput('skip-checksum');
+    // Mask the token so it can never leak into logs/summaries (NFR-1).
+    if (token) {
+        core_setSecret(token);
+    }
     if (!token) {
         warning('No GitHub token available; API requests are unauthenticated and may hit ' +
             'rate limits. Pass "repo-token: ${{ github.token }}" to avoid this.');
