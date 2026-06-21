@@ -1,0 +1,16 @@
+# Codecov configuration.
+# Coverage is informational: it reports on PRs but never fails the build.
+# IO modules (main/download/install/github transport) are intentionally not
+# unit-covered — they are validated end-to-end by .github/workflows/self-test.yml.
+coverage:
+  status:
+    project:
+      default:
+        informational: true
+    patch:
+      default:
+        informational: true
+
+comment:
+  layout: "condensed_header, diff, flags"
+  require_changes: true

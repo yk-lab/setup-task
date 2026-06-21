@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write # Codecov OIDC (tokenless upload)
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -31,7 +32,29 @@ jobs:
 
       - run: npm run typecheck
       - run: npm run lint
-      - run: npm run test
+      - run: npm run test:coverage
+
+      # Coverage + test analytics via Codecov, authenticated with OIDC — no
+      # CODECOV_TOKEN secret needed. Non-blocking (fail_ci_if_error: false) so a
+      # Codecov hiccup never fails the required check. Test results upload even
+      # on test failure (!cancelled) so flaky/failing tests are reported.
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        with:
+          files: ./coverage/lcov.info
+          report_type: coverage
+          use_oidc: true
+          fail_ci_if_error: false
+
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        with:
+          files: ./coverage/junit.xml
+          report_type: test_results
+          use_oidc: true
+          fail_ci_if_error: false
+
       - run: npm run build
 
       # The committed dist/ must match a fresh build, otherwise the action
