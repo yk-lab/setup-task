@@ -35160,6 +35160,26 @@ async function resolveVersion(api, input, checkLatest = false) {
     }
     return match;
 }
+/**
+ * Pick a cached version that satisfies the spec so a range install can skip the
+ * network round-trip (FR-7 / NFR-3 / honours `check-latest=false`). Returns
+ * undefined when the cache cannot answer and a network resolution is needed:
+ *
+ * - checkLatest=true      -> always re-resolve from the network.
+ * - "latest" / "" / "*"   -> newest is network-defined, never a cached guess.
+ * - exact ("3.51.1")      -> resolveVersion returns it without the network anyway.
+ * - range ("3.x")         -> highest cached version satisfying it, else undefined.
+ */
+function resolveFromCache(cachedVersions, input, checkLatest = false) {
+    if (checkLatest) {
+        return undefined;
+    }
+    const spec = (input || 'latest').trim();
+    if (spec === 'latest' || spec === '*' || isExact(spec)) {
+        return undefined;
+    }
+    return node_modules_semver.maxSatisfying(cachedVersions, spec) ?? undefined;
+}
 function cleanOrThrow(version) {
     const cleaned = node_modules_semver.clean(version);
     if (!cleaned) {
@@ -35197,13 +35217,21 @@ async function run() {
     }
     const asset = resolveAsset(process.platform, process.arch, archOverride || undefined);
     core_debug(`Target asset: ${asset.assetName}`);
-    // 1. Resolve the concrete version (FR-1).
+    // 1. Resolve the concrete version (FR-1). For a range with check-latest=false,
+    //    prefer a satisfying cached version so we need no network round-trip and
+    //    stay resilient to GitHub outages/rate limits (FR-7 / NFR-3 / G1).
     const api = createReleaseApi(token || undefined);
-    const version = await withRetry(() => resolveVersion(api, versionSpec, checkLatest), {
-        retries: DEFAULT_RETRIES,
-        name: 'resolve version',
-    });
-    info(`Resolved go-task version: ${version}`);
+    let version = resolveFromCache(findAllVersions(TOOL_NAME, asset.arch), versionSpec, checkLatest);
+    if (version) {
+        info(`Using cached go-task ${version} satisfying "${versionSpec}" (skipped network resolution).`);
+    }
+    else {
+        version = await withRetry(() => resolveVersion(api, versionSpec, checkLatest), {
+            retries: DEFAULT_RETRIES,
+            name: 'resolve version',
+        });
+        info(`Resolved go-task version: ${version}`);
+    }
     // 2. Tool-cache lookup (FR-7).
     let toolDir = find(TOOL_NAME, version, asset.arch);
     const cacheHit = Boolean(toolDir);
