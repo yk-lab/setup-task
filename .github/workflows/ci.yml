@@ -39,6 +39,7 @@ jobs:
       # Codecov hiccup never fails the required check. Test results upload even
       # on test failure (!cancelled) so flaky/failing tests are reported.
       - name: Upload coverage to Codecov
+        if: ${{ !cancelled() }}
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           files: ./coverage/lcov.info
