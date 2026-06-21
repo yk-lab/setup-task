@@ -9,7 +9,7 @@ import { errorMessage } from './errors';
 import { createReleaseApi } from './github';
 import { extract } from './install';
 import { resolveAsset } from './platform';
-import { resolveVersion } from './version';
+import { resolveFromCache, resolveVersion } from './version';
 
 async function run(): Promise<void> {
   const versionSpec = core.getInput('version') || 'latest';
@@ -33,13 +33,20 @@ async function run(): Promise<void> {
   const asset = resolveAsset(process.platform, process.arch, archOverride || undefined);
   core.debug(`Target asset: ${asset.assetName}`);
 
-  // 1. Resolve the concrete version (FR-1).
+  // 1. Resolve the concrete version (FR-1). For a range with check-latest=false,
+  //    prefer a satisfying cached version so we need no network round-trip and
+  //    stay resilient to GitHub outages/rate limits (FR-7 / NFR-3 / G1).
   const api = createReleaseApi(token || undefined);
-  const version = await withRetry(() => resolveVersion(api, versionSpec, checkLatest), {
-    retries: DEFAULT_RETRIES,
-    name: 'resolve version',
-  });
-  core.info(`Resolved go-task version: ${version}`);
+  let version = resolveFromCache(tc.findAllVersions(TOOL_NAME, asset.arch), versionSpec, checkLatest);
+  if (version) {
+    core.info(`Using cached go-task ${version} satisfying "${versionSpec}" (skipped network resolution).`);
+  } else {
+    version = await withRetry(() => resolveVersion(api, versionSpec, checkLatest), {
+      retries: DEFAULT_RETRIES,
+      name: 'resolve version',
+    });
+    core.info(`Resolved go-task version: ${version}`);
+  }
 
   // 2. Tool-cache lookup (FR-7).
   let toolDir = tc.find(TOOL_NAME, version, asset.arch);
