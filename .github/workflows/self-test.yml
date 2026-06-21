@@ -35,26 +35,53 @@ jobs:
       - run: npm ci
       - run: npm run build
 
-      - name: Run setup-task
+      - name: Run setup-task (first install — expect cache miss)
         id: setup
         uses: ./
         with:
           version: ${{ matrix.version }}
 
-      - name: Verify task is on PATH and reports a version
+      - name: Verify install and cache miss on first run
         shell: bash
         run: |
           installed="$(task --version)"
           echo "task --version => ${installed}"
-          echo "action output version => ${RESOLVED}"
-          echo "action output cache-hit => ${CACHE_HIT}"
+          echo "resolved => ${RESOLVED} / cache-hit => ${CACHE_HIT}"
           case "${installed}" in
             *"${RESOLVED}"*) echo "OK: versions match" ;;
             *) echo "::error::version mismatch: '${installed}' does not contain '${RESOLVED}'"; exit 1 ;;
           esac
+          if [ "${CACHE_HIT}" != "false" ]; then
+            echo "::error::expected cache-hit=false on the first install, got '${CACHE_HIT}'"; exit 1
+          fi
         env:
           RESOLVED: ${{ steps.setup.outputs.version }}
           CACHE_HIT: ${{ steps.setup.outputs.cache-hit }}
+
+      # Re-run in the same job: the tool cache persists on this runner, so the
+      # second install must be a cache hit (download + checksum skipped). This
+      # verifies the cache-hit path required by 要求仕様書 §10.2.
+      - name: Run setup-task again (expect cache hit)
+        id: setup2
+        uses: ./
+        with:
+          version: ${{ matrix.version }}
+
+      - name: Verify cache hit on second run
+        shell: bash
+        run: |
+          echo "resolved => ${RESOLVED} / cache-hit => ${CACHE_HIT}"
+          if [ "${CACHE_HIT}" != "true" ]; then
+            echo "::error::expected cache-hit=true on the second install, got '${CACHE_HIT}'"; exit 1
+          fi
+          if [ "${RESOLVED}" != "${FIRST}" ]; then
+            echo "::error::resolved version changed between runs: '${FIRST}' -> '${RESOLVED}'"; exit 1
+          fi
+          echo "OK: second install was served from the tool cache"
+        env:
+          RESOLVED: ${{ steps.setup2.outputs.version }}
+          CACHE_HIT: ${{ steps.setup2.outputs.cache-hit }}
+          FIRST: ${{ steps.setup.outputs.version }}
 
   skip-checksum:
     name: Install with skip-checksum
