@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isExact, resolveVersion, type ReleaseApi } from '../src/version';
+import { isExact, resolveFromCache, resolveVersion, type ReleaseApi } from '../src/version';
 
 function fakeApi(latest: string, stable: string[]): ReleaseApi {
   return {
@@ -48,5 +48,34 @@ describe('resolveVersion', () => {
 
   it('throws when no release satisfies the range', async () => {
     await expect(resolveVersion(api, '^9.0.0')).rejects.toThrow(/No go-task release satisfies/);
+  });
+});
+
+describe('resolveFromCache', () => {
+  const cached = ['3.49.0', '3.50.0', '3.40.0']; // unordered on purpose
+
+  it('returns the highest cached version satisfying a range', () => {
+    expect(resolveFromCache(cached, '3.x')).toBe('3.50.0');
+    expect(resolveFromCache(cached, '>=3.40 <3.50')).toBe('3.49.0');
+  });
+
+  it('returns undefined when no cached version satisfies the range', () => {
+    expect(resolveFromCache(cached, '^3.60')).toBeUndefined();
+    expect(resolveFromCache([], '3.x')).toBeUndefined();
+  });
+
+  it('returns undefined when checkLatest is true (always re-resolve)', () => {
+    expect(resolveFromCache(cached, '3.x', true)).toBeUndefined();
+  });
+
+  it('returns undefined for "latest" / "*" / empty (newest is network-defined)', () => {
+    expect(resolveFromCache(cached, 'latest')).toBeUndefined();
+    expect(resolveFromCache(cached, '*')).toBeUndefined();
+    expect(resolveFromCache(cached, '')).toBeUndefined();
+  });
+
+  it('returns undefined for an exact spec (resolved without the network anyway)', () => {
+    expect(resolveFromCache(cached, '3.50.0')).toBeUndefined();
+    expect(resolveFromCache(cached, 'v3.50.0')).toBeUndefined();
   });
 });

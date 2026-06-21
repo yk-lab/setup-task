@@ -50,6 +50,31 @@ export async function resolveVersion(
   return match;
 }
 
+/**
+ * Pick a cached version that satisfies the spec so a range install can skip the
+ * network round-trip (FR-7 / NFR-3 / honours `check-latest=false`). Returns
+ * undefined when the cache cannot answer and a network resolution is needed:
+ *
+ * - checkLatest=true      -> always re-resolve from the network.
+ * - "latest" / "" / "*"   -> newest is network-defined, never a cached guess.
+ * - exact ("3.51.1")      -> resolveVersion returns it without the network anyway.
+ * - range ("3.x")         -> highest cached version satisfying it, else undefined.
+ */
+export function resolveFromCache(
+  cachedVersions: string[],
+  input: string,
+  checkLatest = false,
+): string | undefined {
+  if (checkLatest) {
+    return undefined;
+  }
+  const spec = (input || 'latest').trim();
+  if (spec === 'latest' || spec === '*' || isExact(spec)) {
+    return undefined;
+  }
+  return semver.maxSatisfying(cachedVersions, spec) ?? undefined;
+}
+
 function cleanOrThrow(version: string): string {
   const cleaned = semver.clean(version);
   if (!cleaned) {
