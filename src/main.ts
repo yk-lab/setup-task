@@ -121,8 +121,8 @@ async function run(): Promise<void> {
   core.setOutput('cache-hit', String(cacheHit));
   core.info(`task ${version} is ready at ${binPath}`);
 
-  // Emit a job summary after the fixed pipeline completes (NFR-5).
-  await core.summary
+  // 8. Job summary (NFR-5).
+  core.summary
     .addHeading('Setup Task')
     .addTable([
       [{ data: 'Item', header: true }, { data: 'Value', header: true }],
