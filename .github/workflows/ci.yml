@@ -96,10 +96,16 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - name: Check passed or skipped
-        if: ${{ needs.check.result == 'success' || needs.check.result == 'skipped' }}
-        run: echo "CI check passed or skipped (markdown-only changes)."
-
-      - name: Check failed
-        if: ${{ needs.check.result == 'failure' }}
-        run: exit 1
+      - name: Report status
+        run: |
+          changes="${{ needs.changes.result }}"
+          check="${{ needs.check.result }}"
+          if [ "$changes" == "failure" ] || [ "$check" == "failure" ]; then
+            echo "::error::CI failed (changes=$changes, check=$check)"
+            exit 1
+          fi
+          if [ "$changes" == "cancelled" ] || [ "$check" == "cancelled" ]; then
+            echo "::error::CI was cancelled (changes=$changes, check=$check)"
+            exit 1
+          fi
+          echo "CI check passed or skipped (markdown-only changes)."
