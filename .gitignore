@@ -6,5 +6,7 @@ coverage/
 # Personal Claude Code overrides (shared .claude/settings.json IS committed)
 .claude/settings.local.json
 
-# NOTE: dist/ is intentionally committed — GitHub Actions run the bundled
-# dist/index.js directly from the repo, so it must be checked in.
+# dist/ is NOT committed. The bundle is built at release time and committed
+# only onto the release tag (see .github/workflows — release automation), so
+# the source branches stay clean. Use a tag (e.g. @v1), not @main, to consume.
+dist/

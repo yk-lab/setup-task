@@ -23,9 +23,13 @@ pnpm exec vitest run tests/version.test.ts        # run a single test file
 pnpm exec vitest run -t "resolves a semver range" # run tests matching a name
 ```
 
-## Critical: `dist/` is committed and must stay in sync
+## Critical: `dist/` is built at release time, NOT committed to source branches
 
-GitHub Actions runs the bundled `dist/index.js` directly (see `action.yml` → `main: dist/index.js`), **not** the TypeScript source. After any change under `src/`, run `pnpm run build` and commit the regenerated `dist/`. CI (`.github/workflows/ci.yml`) fails the build if `git status --porcelain dist` is non-empty — i.e. if the committed `dist/` doesn't match a fresh build. (Rebuild with the same pnpm version CI uses — the `packageManager` pin keeps them aligned.)
+GitHub Actions runs the bundled `dist/index.js` directly (see `action.yml` → `main: dist/index.js`), **not** the TypeScript source — so a consumed ref must contain `dist/`. This repo keeps `dist/` **out of `main`** (`.gitignore`d) and builds it at release time, committing it **only onto the release tag**. Consequences:
+
+- **Consume via a tag** (`uses: yk-lab/setup-task@v1`), never `@main` — `main` has no `dist/`.
+- Source PRs carry no `dist/` churn; there is no freshness check. CI still runs `pnpm run build` to confirm the bundle compiles, and `self-test.yml` builds before `uses: ./`.
+- Releasing is what produces a usable `dist/` (see release automation in `.github/workflows`). Always rebuild with the pinned pnpm version (`packageManager` field) so the tagged bundle is reproducible.
 
 ## Architecture
 
