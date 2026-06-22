@@ -18,12 +18,12 @@ pnpm run lint     # eslint  (lint:fix to autofix)
 > Dependency installs honour a supply-chain cooldown (`minimumReleaseAge` in
 > `pnpm-workspace.yaml`): versions published in the last 3 days are not used.
 
-### `dist/` is committed — keep it in sync
+### `dist/` is not committed
 
-GitHub Actions runs the bundled `dist/index.js` directly, so it is checked into
-the repository. After any change under `src/`, run `pnpm run build` and commit
-the regenerated `dist/`. CI fails if the committed `dist/` does not match a
-fresh build.
+The bundled `dist/index.js` is built at release time and committed only onto the
+release tag, so source branches stay clean — do **not** commit `dist/` (it is
+`.gitignore`d). `pnpm run build` is still useful locally to confirm the bundle
+compiles; CI builds it too. Consume the action via a tag (`@v1`), not `@main`.
 
 ## Pull requests
 

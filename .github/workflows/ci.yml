@@ -59,14 +59,7 @@ jobs:
           use_oidc: true
           fail_ci_if_error: false
 
+      # Build to confirm the bundle compiles. dist/ is NOT committed (it is
+      # produced at release time and committed onto the tag), so there is no
+      # freshness check here.
       - run: pnpm run build
-
-      # The committed dist/ must match a fresh build, otherwise the action
-      # would run stale code. Fail if `pnpm run build` produced a diff.
-      - name: Verify dist/ is up to date
-        run: |
-          if [ -n "$(git status --porcelain dist)" ]; then
-            echo "::error::dist/ is out of date. Run 'npm run build' and commit the result."
-            git --no-pager diff --stat dist
-            exit 1
-          fi
