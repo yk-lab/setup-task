@@ -13,8 +13,31 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Detect whether non-markdown files changed so the heavy matrix jobs can be
+  # skipped for documentation-only PRs while still reporting a green status.
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      src: ${{ steps.filter.outputs.src }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
+        id: filter
+        with:
+          filters: |
+            src:
+              - '**/*'
+              - '!**/*.md'
+              - '!.github/workflows/docs.yml'
+
   matrix:
     name: ${{ matrix.os }} / version=${{ matrix.version }}
+    needs: changes
+    if: ${{ needs.changes.outputs.src == 'true' }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     strategy:
@@ -86,6 +109,8 @@ jobs:
 
   skip-checksum:
     name: Install with skip-checksum
+    needs: changes
+    if: ${{ needs.changes.outputs.src == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -110,3 +135,25 @@ jobs:
           version: "3.51.1"
           skip-checksum: "true"
       - run: task --version
+
+  # Bridge job that always succeeds so branch protection can require it even
+  # when the real self-test jobs are skipped for markdown-only changes.
+  self-test-gate:
+    name: Self-test (gate)
+    needs: [changes, matrix, skip-checksum]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Self-test passed or skipped
+        if: ${{
+          (needs.matrix.result == 'success' || needs.matrix.result == 'skipped') &&
+          (needs.skip-checksum.result == 'success' || needs.skip-checksum.result == 'skipped')
+          }}
+        run: echo "Self-test passed or skipped (markdown-only changes)."
+
+      - name: Self-test failed
+        if: ${{
+          needs.matrix.result == 'failure' ||
+          needs.skip-checksum.result == 'failure'
+          }}
+        run: exit 1
