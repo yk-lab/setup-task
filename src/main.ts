@@ -18,6 +18,16 @@ async function run(): Promise<void> {
   const checkLatest = core.getBooleanInput('check-latest');
   const skipChecksum = core.getBooleanInput('skip-checksum');
 
+  // Summary state collected during the run and written at the end (NFR-5).
+  const summary = {
+    version: '',
+    asset: '',
+    source: 'go-task/task GitHub Releases',
+    cache: 'miss',
+    checksum: 'n/a',
+    path: '',
+  };
+
   // Mask the token so it can never leak into logs/summaries (NFR-1).
   if (token) {
     core.setSecret(token);
@@ -31,6 +41,7 @@ async function run(): Promise<void> {
   }
 
   const asset = resolveAsset(process.platform, process.arch, archOverride || undefined);
+  summary.asset = asset.assetName;
   core.debug(`Target asset: ${asset.assetName}`);
 
   // 1. Resolve the concrete version (FR-1). For a range with check-latest=false,
@@ -47,10 +58,12 @@ async function run(): Promise<void> {
     });
     core.info(`Resolved go-task version: ${version}`);
   }
+  summary.version = version;
 
   // 2. Tool-cache lookup (FR-7).
   let toolDir = tc.find(TOOL_NAME, version, asset.arch);
   const cacheHit = Boolean(toolDir);
+  summary.cache = cacheHit ? 'hit' : 'miss';
 
   if (cacheHit) {
     core.info(`Restored task ${version} from tool cache.`);
@@ -67,6 +80,7 @@ async function run(): Promise<void> {
 
     // 4. Checksum verification (FR-5).
     if (skipChecksum) {
+      summary.checksum = 'skipped';
       core.warning('Checksum verification skipped (skip-checksum=true).');
     } else {
       const expected = await withRetry(() => fetchChecksum(tag, asset.assetName, token || undefined), {
@@ -80,6 +94,7 @@ async function run(): Promise<void> {
         );
       }
       verifyChecksum(archivePath, expected);
+      summary.checksum = 'verified (SHA256)';
       core.info('Checksum verified (SHA256).');
     }
 
@@ -90,6 +105,7 @@ async function run(): Promise<void> {
 
   // 6. Ensure executable + expose on PATH (FR-6/FR-8).
   const binPath = path.join(toolDir, asset.binaryName);
+  summary.path = binPath;
   if (process.platform !== 'win32') {
     try {
       fs.chmodSync(binPath, 0o755);
@@ -104,6 +120,20 @@ async function run(): Promise<void> {
   core.setOutput('task-path', binPath);
   core.setOutput('cache-hit', String(cacheHit));
   core.info(`task ${version} is ready at ${binPath}`);
+
+  // 8. Job summary (NFR-5).
+  core.summary
+    .addHeading('Setup Task')
+    .addTable([
+      [{ data: 'Item', header: true }, { data: 'Value', header: true }],
+      ['Version', summary.version],
+      ['Asset', summary.asset],
+      ['Source', summary.source],
+      ['Cache', summary.cache],
+      ['Checksum', summary.checksum],
+      ['Executable', summary.path],
+    ])
+    .write();
 }
 
 run().catch((err: unknown) => {
