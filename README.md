@@ -68,9 +68,11 @@ Replace the `uses:` line — the common inputs are compatible:
 
 ## Development
 
+Uses [pnpm](https://pnpm.io) (`corepack enable` provides the pinned version).
+
 ```bash
-npm install
-npm run all        # typecheck + lint + test + build (bundles dist/)
+pnpm install
+pnpm run all       # typecheck + lint + test + build (bundles dist/)
 ```
 
 `dist/` is committed because GitHub Actions run the bundled `dist/index.js` directly. CI fails if it is out of date.

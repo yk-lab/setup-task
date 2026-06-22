@@ -8,6 +8,6 @@
 
 ## Test plan
 
-- [ ] `npm run all` is green (typecheck + lint + test + build)
+- [ ] `pnpm run all` is green (typecheck + lint + test + build)
 - [ ] `dist/` rebuilt and committed (if `src/` changed)
 - [ ] CI / self-test pass

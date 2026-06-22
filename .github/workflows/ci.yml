@@ -23,16 +23,19 @@ jobs:
         with:
           persist-credentials: false
 
+      # pnpm must be set up before setup-node so `cache: pnpm` can find it.
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: 24
-          cache: npm
+          cache: pnpm
 
-      - run: npm ci
+      - run: pnpm install --frozen-lockfile
 
-      - run: npm run typecheck
-      - run: npm run lint
-      - run: npm run test:coverage
+      - run: pnpm run typecheck
+      - run: pnpm run lint
+      - run: pnpm run test:coverage
 
       # Coverage + test analytics via Codecov, authenticated with OIDC — no
       # CODECOV_TOKEN secret needed. Non-blocking (fail_ci_if_error: false) so a
@@ -56,10 +59,10 @@ jobs:
           use_oidc: true
           fail_ci_if_error: false
 
-      - run: npm run build
+      - run: pnpm run build
 
       # The committed dist/ must match a fresh build, otherwise the action
-      # would run stale code. Fail if `npm run build` produced a diff.
+      # would run stale code. Fail if `pnpm run build` produced a diff.
       - name: Verify dist/ is up to date
         run: |
           if [ -n "$(git status --porcelain dist)" ]; then
