@@ -8,20 +8,24 @@ A GitHub Action (TypeScript, Node 24 runtime) that installs the [go-task](https:
 
 ## Commands
 
+This repo uses **pnpm** (enforced via a `preinstall` guard; version pinned in
+`package.json` `packageManager`). Use `corepack enable` to get it.
+
 ```bash
-npm run all          # typecheck + lint + test + build — run before committing
-npm run typecheck    # tsc --noEmit
-npm run lint         # eslint .   (lint:fix to autofix)
-npm run test         # vitest run
-npm run test:watch   # vitest in watch mode
-npm run build        # ncc bundles src/main.ts -> dist/index.js
-npx vitest run tests/version.test.ts            # run a single test file
-npx vitest run -t "resolves a semver range"     # run tests matching a name
+pnpm install         # honours minimumReleaseAge cooldown (pnpm-workspace.yaml)
+pnpm run all         # typecheck + lint + test + build — run before committing
+pnpm run typecheck   # tsc --noEmit
+pnpm run lint        # eslint .   (lint:fix to autofix)
+pnpm run test        # vitest run
+pnpm run test:watch  # vitest in watch mode
+pnpm run build       # ncc bundles src/main.ts -> dist/index.js
+pnpm exec vitest run tests/version.test.ts        # run a single test file
+pnpm exec vitest run -t "resolves a semver range" # run tests matching a name
 ```
 
 ## Critical: `dist/` is committed and must stay in sync
 
-GitHub Actions runs the bundled `dist/index.js` directly (see `action.yml` → `main: dist/index.js`), **not** the TypeScript source. After any change under `src/`, run `npm run build` and commit the regenerated `dist/`. CI (`.github/workflows/ci.yml`) fails the build if `git status --porcelain dist` is non-empty — i.e. if the committed `dist/` doesn't match a fresh build.
+GitHub Actions runs the bundled `dist/index.js` directly (see `action.yml` → `main: dist/index.js`), **not** the TypeScript source. After any change under `src/`, run `pnpm run build` and commit the regenerated `dist/`. CI (`.github/workflows/ci.yml`) fails the build if `git status --porcelain dist` is non-empty — i.e. if the committed `dist/` doesn't match a fresh build. (Rebuild with the same pnpm version CI uses — the `packageManager` pin keeps them aligned.)
 
 ## Architecture
 
