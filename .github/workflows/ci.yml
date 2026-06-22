@@ -15,8 +15,31 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Detect whether non-markdown files changed so the heavy check job can be
+  # skipped for documentation-only PRs while still reporting a green status.
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      src: ${{ steps.filter.outputs.src }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
+        id: filter
+        with:
+          filters: |
+            src:
+              - '**/*'
+              - '!**/*.md'
+              - '!.github/workflows/docs.yml'
+
   check:
     name: Typecheck / Lint / Test / Build
+    needs: changes
+    if: ${{ needs.changes.outputs.src == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -64,3 +87,19 @@ jobs:
       # produced at release time and committed onto the tag), so there is no
       # freshness check here.
       - run: pnpm run build
+
+  # Bridge job that always succeeds so branch protection can require it even
+  # when the real check job is skipped for markdown-only changes.
+  check-gate:
+    name: Typecheck / Lint / Test / Build (gate)
+    needs: [changes, check]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check passed or skipped
+        if: ${{ needs.check.result == 'success' || needs.check.result == 'skipped' }}
+        run: echo "CI check passed or skipped (markdown-only changes)."
+
+      - name: Check failed
+        if: ${{ needs.check.result == 'failure' }}
+        run: exit 1
