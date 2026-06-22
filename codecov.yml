@@ -12,5 +12,7 @@ coverage:
         informational: true
 
 comment:
-  layout: "condensed_header, diff, flags"
-  require_changes: true
+  layout: "header, diff, flags, files"
+  require_changes: false
+  require_base: true
+  require_head: true
