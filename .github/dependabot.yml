@@ -8,6 +8,11 @@ updates:
       actions-toolkit:
         patterns:
           - "@actions/*"
+    ignore:
+      # @types/node must track the Node runtime (Node 24); bump its major
+      # manually when the runtime moves. Stops overshooting proposals (e.g. v26).
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
