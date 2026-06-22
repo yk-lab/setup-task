@@ -49,7 +49,6 @@
 
 | # | 概要 | 優先度 | ラベル | 備考 |
 |---|---|---|---|---|
-| [#8](https://github.com/yk-lab/setup-task/issues/8) | `[ci]` Codecov でカバレッジを PR 表示 | `P3: low` | `ci` `test` | reopen。`pull-requests: write` 追加 + `codecov.yml` 調整済み。PR コメント表示を確認 |
 | [#39](https://github.com/yk-lab/setup-task/issues/39) | `[enhancement]` ジョブサマリに導入結果を出力（NFR-5） | `P3: low` | `enhancement` |
 | [#40](https://github.com/yk-lab/setup-task/issues/40) | `[enhancement]` リトライ回数・間隔を input 化（FR-4） | `P3: low` | `enhancement` |
 | [#41](https://github.com/yk-lab/setup-task/issues/41) | `[test]` platform.test.ts を §9 全 os/arch 組合せに拡張 | `P3: low` | `test` |
@@ -70,6 +69,7 @@ v1.0.0 実装中に作成・解決済みの Issue（参考）。
 
 | # | 概要 | 解決 PR（推定） |
 |---|---|---|
+| [#8](https://github.com/yk-lab/setup-task/issues/8) | `[ci]` Codecov でカバレッジを PR 表示 | #46 / #47 |
 | [#1](https://github.com/yk-lab/setup-task/issues/1) | `[security]` `repo-token` を `core.setSecret` で秘匿 | #24 |
 | [#2](https://github.com/yk-lab/setup-task/issues/2) | `[test]` `withRetry` のユニットテスト | #25 |
 | [#3](https://github.com/yk-lab/setup-task/issues/3) | `[test]` `fetchJson` content-type ガードのテスト | #26 |
