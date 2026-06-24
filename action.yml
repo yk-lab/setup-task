@@ -24,9 +24,17 @@ inputs:
     required: false
     default: "false"
   skip-checksum:
-    description: "Disable SHA256 checksum verification of the downloaded archive (NOT recommended)."
+    description: "Disable SHA256 verification of the downloaded archive (NOT recommended)."
     required: false
     default: "false"
+  retries:
+    description: "Maximum number of retries for transient network failures."
+    required: false
+    default: "3"
+  retry-base-ms:
+    description: "Initial backoff delay between retries, in milliseconds."
+    required: false
+    default: "1000"
 
 outputs:
   version:

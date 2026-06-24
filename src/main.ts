@@ -2,8 +2,9 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as core from '@actions/core';
 import * as tc from '@actions/tool-cache';
-import { DEFAULT_RETRIES, TOOL_NAME, releaseDownloadUrl } from './constants';
+import { DEFAULT_RETRIES, DEFAULT_RETRY_BASE_MS, TOOL_NAME, releaseDownloadUrl } from './constants';
 import { downloadAsset, withRetry } from './download';
+import { parseRetryInput } from './inputs';
 import { fetchChecksum, verifyChecksum } from './checksum';
 import { errorMessage } from './errors';
 import { createReleaseApi } from './github';
@@ -17,6 +18,8 @@ async function run(): Promise<void> {
   const archOverride = core.getInput('architecture');
   const checkLatest = core.getBooleanInput('check-latest');
   const skipChecksum = core.getBooleanInput('skip-checksum');
+  const retries = parseRetryInput(core.getInput('retries'), DEFAULT_RETRIES, 'retries');
+  const retryBaseMs = parseRetryInput(core.getInput('retry-base-ms'), DEFAULT_RETRY_BASE_MS, 'retry-base-ms');
 
   // Summary state collected during the run and written at the end (NFR-5).
   const summary = {
@@ -53,7 +56,8 @@ async function run(): Promise<void> {
     core.info(`Using cached go-task ${version} satisfying "${versionSpec}" (skipped network resolution).`);
   } else {
     version = await withRetry(() => resolveVersion(api, versionSpec, checkLatest), {
-      retries: DEFAULT_RETRIES,
+      retries,
+      baseMs: retryBaseMs,
       name: 'resolve version',
     });
     core.info(`Resolved go-task version: ${version}`);
@@ -74,7 +78,8 @@ async function run(): Promise<void> {
     // 3. Download (authenticated + retry, FR-3/FR-4).
     core.info(`Downloading ${url}`);
     const archivePath = await withRetry(() => downloadAsset(url, token || undefined), {
-      retries: DEFAULT_RETRIES,
+      retries,
+      baseMs: retryBaseMs,
       name: 'download asset',
     });
 
@@ -84,7 +89,8 @@ async function run(): Promise<void> {
       core.warning('Checksum verification skipped (skip-checksum=true).');
     } else {
       const expected = await withRetry(() => fetchChecksum(tag, asset.assetName, token || undefined), {
-        retries: DEFAULT_RETRIES,
+        retries,
+        baseMs: retryBaseMs,
         name: 'fetch checksums',
       });
       if (!expected) {
@@ -122,18 +128,23 @@ async function run(): Promise<void> {
   core.info(`task ${version} is ready at ${binPath}`);
 
   // Emit a job summary after the fixed pipeline completes (NFR-5).
-  await core.summary
-    .addHeading('Setup Task')
-    .addTable([
-      [{ data: 'Item', header: true }, { data: 'Value', header: true }],
-      ['Version', summary.version],
-      ['Asset', summary.asset],
-      ['Source', summary.source],
-      ['Cache', summary.cache],
-      ['Checksum', summary.checksum],
-      ['Executable', summary.path],
-    ])
-    .write();
+  // Best-effort: a summary write failure must not fail the action.
+  try {
+    await core.summary
+      .addHeading('Setup Task')
+      .addTable([
+        [{ data: 'Item', header: true }, { data: 'Value', header: true }],
+        ['Version', summary.version],
+        ['Asset', summary.asset],
+        ['Source', summary.source],
+        ['Cache', summary.cache],
+        ['Checksum', summary.checksum],
+        ['Executable', summary.path],
+      ])
+      .write();
+  } catch (err) {
+    core.warning(`Failed to write job summary: ${errorMessage(err)}`);
+  }
 }
 
 run().catch((err: unknown) => {
