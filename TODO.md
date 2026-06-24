@@ -50,7 +50,6 @@
 | # | 概要 | 優先度 | ラベル | 備考 |
 |---|---|---|---|---|
 | [#39](https://github.com/yk-lab/setup-task/issues/39) | `[enhancement]` ジョブサマリに導入結果を出力（NFR-5） | `P3: low` | `enhancement` |
-| [#40](https://github.com/yk-lab/setup-task/issues/40) | `[enhancement]` リトライ回数・間隔を input 化（FR-4） | `P3: low` | `enhancement` |
 | [#41](https://github.com/yk-lab/setup-task/issues/41) | `[test]` platform.test.ts を §9 全 os/arch 組合せに拡張 | `P3: low` | `test` |
 | [#42](https://github.com/yk-lab/setup-task/issues/42) | `[security]` ダウンロード先ホスト/リダイレクト先を検証（NFR-1） | `P2: medium` | `security` |
 | [#43](https://github.com/yk-lab/setup-task/issues/43) | `[chore]` checksum 改ざんテストの重複ファイルを統合 | `P3: low` | `chore` `test` |
@@ -77,3 +76,4 @@ v1.0.0 実装中に作成・解決済みの Issue（参考）。
 | [#5](https://github.com/yk-lab/setup-task/issues/5) | `[test]` cache-hit 経路の self-test | #29 |
 | [#7](https://github.com/yk-lab/setup-task/issues/7) | `[bug]` レンジ指定時に tool-cache より先に GitHub 解決する | #30 |
 | [#22](https://github.com/yk-lab/setup-task/issues/22) | dist/ freshness 管理 | #36（main から dist/ を外し、リリース時ビルド方式へ） |
+| [#40](https://github.com/yk-lab/setup-task/issues/40) | `[enhancement]` リトライ回数・間隔を input 化（FR-4） | #51 |

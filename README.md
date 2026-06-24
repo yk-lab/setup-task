@@ -46,6 +46,8 @@ Replace the `uses:` line — the common inputs are compatible:
 | `architecture` | runner's arch | Override the CPU architecture (e.g. `amd64`, `arm64`). |
 | `check-latest` | `false` | For ranges, always re-resolve the newest matching release. |
 | `skip-checksum` | `false` | Disable SHA256 verification (not recommended). |
+| `retries` | `3` | Max retries for transient network failures (version resolve, download, checksum fetch). |
+| `retry-base-ms` | `1000` | Initial backoff delay between retries, in milliseconds (doubles each attempt). |
 
 > **Tip:** pin a range like `3.x` (or an exact version) rather than `latest` for reproducible CI.
 
