@@ -2,6 +2,7 @@ import * as core from '@actions/core';
 import * as tc from '@actions/tool-cache';
 import { DEFAULT_RETRIES, DEFAULT_RETRY_BASE_MS } from './constants';
 import { PermanentError, errorMessage } from './errors';
+import { assertRedirectTrusted } from './github';
 
 export interface RetryOptions {
   retries?: number;
@@ -56,6 +57,10 @@ export async function withRetry<T>(fn: () => Promise<T>, opts: RetryOptions = {}
  * (FR-3).
  */
 export async function downloadAsset(url: string, token?: string): Promise<string> {
+  // Vet the redirect chain's hosts before tool-cache fetches the body (NFR-1):
+  // tool-cache follows redirects internally and can't be inspected, so an
+  // untrusted redirect target is rejected here, up front.
+  await assertRedirectTrusted(url, token);
   const auth = token ? `Bearer ${token}` : undefined;
   return tc.downloadTool(url, undefined, auth);
 }
