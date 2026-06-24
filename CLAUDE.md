@@ -50,6 +50,7 @@ Key design seams to preserve when editing:
 - **Retry vs. permanent (`download.ts` `withRetry` + `errors.ts` `PermanentError`)**: `withRetry` does exponential backoff, but `PermanentError` (and HTTP 404, including tool-cache's `httpStatusCode === 404`) bail out immediately with no retry. When adding a new failure mode, decide deliberately which side it falls on — checksum mismatches and 404s are permanent; everything network-ish is transient.
 - **Platform mapping (`platform.ts`)**: maps Node `process.platform`/`process.arch` to go-task's asset naming (`task_<os>_<arch>.<ext>`) and validates against a hardcoded `SUPPORTED` matrix mirroring go-task's published assets. Update `SUPPORTED` if upstream adds/drops a target.
 - **`constants.ts`** centralizes the upstream repo (`go-task/task`), the `task_checksums.txt` asset name, URL builders, and retry tuning.
+- **Host allowlist (NFR-1, `url-guard.ts` + `github.ts` `secureFetch`)**: `secureFetch` follows redirects manually and validates *every* hop's host against `github.com` / `api.github.com` / `*.githubusercontent.com` (`url-guard.ts` `isAllowedHost`); an untrusted host is a `PermanentError` (never retried). `Authorization` is dropped on cross-origin redirects so the token never leaks off `github.com`. Because tool-cache's downloader follows redirects opaquely, `download.ts` pre-flights the binary URL via `assertRedirectTrusted` before handing it over. Keep the allowlist a suffix match — GitHub renamed the asset CDN (`objects.` → `release-assets.githubusercontent.com`) once already.
 
 ## Conventions
 
