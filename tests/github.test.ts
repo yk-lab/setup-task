@@ -146,6 +146,16 @@ describe('secureFetch (redirect host validation, NFR-1)', () => {
     await expect(secureFetch(CHECKSUMS_URL, {})).rejects.toThrow(/Too many redirects/);
   });
 
+  it('rejects a redirect status with no Location header (malformed) as PermanentError', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 302 })));
+    await expect(secureFetch(CHECKSUMS_URL, {})).rejects.toBeInstanceOf(PermanentError);
+  });
+
+  it('rejects a redirect with an unparseable Location as PermanentError', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => redirectTo('http://')));
+    await expect(secureFetch(CHECKSUMS_URL, {})).rejects.toBeInstanceOf(PermanentError);
+  });
+
   it('assertRedirectTrusted rejects an untrusted binary redirect target (NFR-1)', async () => {
     // The binary preflight (download.ts) relies on this: github.com 302s to an
     // attacker host -> PermanentError, before tool-cache ever downloads.

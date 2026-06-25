@@ -8,7 +8,7 @@ describe('isAllowedHost', () => {
     expect(isAllowedHost('api.github.com')).toBe(true);
   });
 
-  it('allows the asset CDN via the .githubusercontent.com suffix', () => {
+  it('allows the release-asset CDN hosts (current + previous)', () => {
     expect(isAllowedHost('release-assets.githubusercontent.com')).toBe(true);
     expect(isAllowedHost('objects.githubusercontent.com')).toBe(true);
   });
@@ -18,11 +18,17 @@ describe('isAllowedHost', () => {
     expect(isAllowedHost('Release-Assets.GitHubUserContent.com')).toBe(true);
   });
 
+  it('rejects user-content githubusercontent hosts (raw/gist)', () => {
+    // These serve arbitrary user content and must not be a trusted target.
+    expect(isAllowedHost('raw.githubusercontent.com')).toBe(false);
+    expect(isAllowedHost('gist.githubusercontent.com')).toBe(false);
+    expect(isAllowedHost('camo.githubusercontent.com')).toBe(false);
+  });
+
   it('rejects look-alike / spoofed hosts', () => {
     expect(isAllowedHost('evil.com')).toBe(false);
     expect(isAllowedHost('github.com.evil.com')).toBe(false);
     expect(isAllowedHost('notgithub.com')).toBe(false);
-    // No dot before the suffix -> not a real subdomain of githubusercontent.com.
     expect(isAllowedHost('evilgithubusercontent.com')).toBe(false);
     expect(isAllowedHost('githubusercontent.com.evil.com')).toBe(false);
   });

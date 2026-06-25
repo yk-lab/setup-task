@@ -21,7 +21,7 @@
 | FR-5 | SHA256 検証（既定 ON, BSD `*name` 形式対応） | `src/checksum.ts` |
 | FR-6〜FR-9 | 展開 / chmod / tool-cache / PATH / outputs | `src/main.ts` / `src/install.ts` |
 | FR-10 | `arduino/setup-task` 互換 inputs | `action.yml` |
-| NFR-1 | `repo-token` マスク + 取得ホスト/リダイレクト先検証 | `src/main.ts` / `src/url-guard.ts` / `src/github.ts` |
+| NFR-1 | `repo-token` マスク + 取得ホスト/リダイレクト先検証 | `src/main.ts` / `src/url-guard.ts` / `src/github.ts` / `src/download.ts` |
 | NFR-3 | exact 指定時の一覧取得スキップ + cache 優先 | `src/version.ts` / `src/main.ts` |
 | §10.1 | ユニットテスト（version / platform / github / download / checksum） | `tests/*.test.ts` |
 | §10.2 | cache-hit 経路の self-test | `.github/workflows/self-test.yml` |

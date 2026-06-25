@@ -47,15 +47,26 @@ export async function secureFetch(url: string, headers: Record<string, string>):
     assertAllowedHost(currentUrl, 'request');
     const resp = await fetch(currentUrl, { headers: currentHeaders, redirect: 'manual' });
 
-    const location = resp.headers.get('location');
-    if (!REDIRECT_STATUSES.has(resp.status) || !location) {
+    if (!REDIRECT_STATUSES.has(resp.status)) {
       return resp;
     }
 
-    // Drain the redirect body so the connection can be reused, then resolve the
-    // next hop relative to the current URL and drop auth if it crosses origins.
+    // A redirect status with a missing or unparseable Location is malformed —
+    // treat it as untrusted (PermanentError) rather than a trusted terminal,
+    // so a bad redirect can't slip through the preflight's fall-through path.
     await resp.body?.cancel();
-    const next = new URL(location, currentUrl);
+    const location = resp.headers.get('location');
+    if (!location) {
+      throw new PermanentError(`Redirect ${resp.status} without a Location from ${currentUrl}`);
+    }
+    let next: URL;
+    try {
+      next = new URL(location, currentUrl);
+    } catch {
+      throw new PermanentError(`Invalid redirect Location from ${currentUrl}: ${location}`);
+    }
+
+    // Drop auth if the next hop crosses origins (don't leak the token off-host).
     if (next.origin !== new URL(currentUrl).origin) {
       currentHeaders = withoutAuth(currentHeaders);
     }

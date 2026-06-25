@@ -69,10 +69,18 @@ export async function downloadAsset(url: string, token?: string): Promise<string
   try {
     await assertRedirectTrusted(url, token);
   } catch (err) {
+    // An untrusted host / malformed redirect is a hard security failure.
     if (err instanceof PermanentError) {
       throw err;
     }
-    core.debug(`Redirect preflight skipped (non-fatal): ${errorMessage(err)}`);
+    // Only a genuine network/proxy failure is tolerated: a failed `fetch()`
+    // throws a TypeError, and global fetch ignores runner proxy settings, so we
+    // fall through to the proxy-capable tool-cache download (the binary is still
+    // SHA256 verified). Any other error is unexpected — let it surface.
+    if (!(err instanceof TypeError)) {
+      throw err;
+    }
+    core.debug(`Redirect preflight skipped (network/proxy failure): ${errorMessage(err)}`);
   }
   const auth = token ? `Bearer ${token}` : undefined;
   return tc.downloadTool(url, undefined, auth);

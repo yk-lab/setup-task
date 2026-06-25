@@ -95,11 +95,17 @@ describe('downloadAsset (redirect preflight wiring, NFR-1)', () => {
     expect(tc.downloadTool).not.toHaveBeenCalled();
   });
 
-  it('falls through to tool-cache when the preflight fails for a non-host reason (proxy)', async () => {
-    // A network/proxy error in the preflight must not block the proxy-capable
-    // tool-cache download (the binary is still checksum-verified downstream).
-    vi.mocked(assertRedirectTrusted).mockRejectedValueOnce(new Error('proxy unreachable'));
+  it('falls through to tool-cache on a network/proxy fetch failure (TypeError)', async () => {
+    // A failed fetch() throws TypeError; global fetch ignores proxy settings, so
+    // this must not block the proxy-capable tool-cache download.
+    vi.mocked(assertRedirectTrusted).mockRejectedValueOnce(new TypeError('fetch failed'));
     await expect(downloadAsset(ASSET_URL, 'tok')).resolves.toBe('/tmp/task-archive');
     expect(tc.downloadTool).toHaveBeenCalledOnce();
+  });
+
+  it('propagates an unexpected (non-network) preflight error', async () => {
+    vi.mocked(assertRedirectTrusted).mockRejectedValueOnce(new Error('unexpected'));
+    await expect(downloadAsset(ASSET_URL, 'tok')).rejects.toThrow('unexpected');
+    expect(tc.downloadTool).not.toHaveBeenCalled();
   });
 });
