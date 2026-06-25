@@ -10,9 +10,13 @@ import { errorMessage } from './errors';
 import { createReleaseApi } from './github';
 import { extract } from './install';
 import { resolveAsset } from './platform';
+import { configureProxyFromEnv } from './proxy';
 import { resolveFromCache, resolveVersion } from './version';
 
 async function run(): Promise<void> {
+  // Route fetch through the runner's proxy before any network call (#54).
+  configureProxyFromEnv();
+
   const versionSpec = core.getInput('version') || 'latest';
   const token = core.getInput('repo-token') || process.env.GITHUB_TOKEN || '';
   const archOverride = core.getInput('architecture');

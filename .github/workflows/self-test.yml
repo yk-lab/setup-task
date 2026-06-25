@@ -137,11 +137,75 @@ jobs:
           skip-checksum: "true"
       - run: task --version
 
+  # Install with all traffic forced through an HTTP proxy, proving the action's
+  # fetch (proxy-unaware by default) is routed via the proxy env (#54).
+  proxy:
+    name: Install behind an HTTP proxy
+    needs: changes
+    if: ${{ needs.changes.outputs.src == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
+
+      - name: Start a local HTTP proxy (tinyproxy)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y tinyproxy
+          {
+            echo "Port 8888"
+            echo "Listen 127.0.0.1"
+            echo "Timeout 600"
+            echo "Allow 127.0.0.1"
+            echo 'LogFile "/tmp/tinyproxy.log"'
+            echo "LogLevel Connect"
+            echo "ConnectPort 443"
+          } > /tmp/tinyproxy.conf
+          tinyproxy -c /tmp/tinyproxy.conf
+          ok=
+          for _ in $(seq 1 10); do
+            if curl -fsS -x http://127.0.0.1:8888 -o /dev/null https://github.com; then ok=1; break; fi
+            sleep 1
+          done
+          [ -n "$ok" ] || { echo "::error::tinyproxy did not come up"; cat /tmp/tinyproxy.log || true; exit 1; }
+
+      - name: Run setup-task through the proxy
+        uses: ./
+        env:
+          HTTP_PROXY: http://127.0.0.1:8888
+          HTTPS_PROXY: http://127.0.0.1:8888
+        with:
+          # A range forces version resolution via the GitHub API, which only the
+          # built-in fetch reaches (tool-cache already proxies and only hits
+          # github.com / the asset CDN) — so this exercises the new fetch proxying.
+          version: "3.x"
+          repo-token: ${{ github.token }}
+      - run: task --version
+
+      - name: Assert the built-in fetch went through the proxy
+        run: |
+          echo '--- tinyproxy log ---'
+          cat /tmp/tinyproxy.log || true
+          # api.github.com is reached ONLY by the action's fetch (version
+          # resolution) — never by tool-cache or the readiness curl above. Its
+          # presence proves configureProxyFromEnv() routed fetch through the proxy;
+          # if fetch bypassed it (direct egress), this is absent and the job fails.
+          grep -Eiq "api\.github\.com" /tmp/tinyproxy.log
+
   # Bridge job that always succeeds so branch protection can require it even
   # when the real self-test jobs are skipped for markdown-only changes.
   self-test-gate:
     name: Self-test (gate)
-    needs: [changes, matrix, skip-checksum]
+    needs: [changes, matrix, skip-checksum, proxy]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -150,12 +214,13 @@ jobs:
           changes="${{ needs.changes.result }}"
           matrix="${{ needs.matrix.result }}"
           skip="${{ needs.skip-checksum.result }}"
-          if [ "$changes" == "failure" ] || [ "$matrix" == "failure" ] || [ "$skip" == "failure" ]; then
-            echo "::error::Self-test failed (changes=$changes, matrix=$matrix, skip-checksum=$skip)"
+          proxy="${{ needs.proxy.result }}"
+          if [ "$changes" == "failure" ] || [ "$matrix" == "failure" ] || [ "$skip" == "failure" ] || [ "$proxy" == "failure" ]; then
+            echo "::error::Self-test failed (changes=$changes, matrix=$matrix, skip-checksum=$skip, proxy=$proxy)"
             exit 1
           fi
-          if [ "$changes" == "cancelled" ] || [ "$matrix" == "cancelled" ] || [ "$skip" == "cancelled" ]; then
-            echo "::error::Self-test was cancelled (changes=$changes, matrix=$matrix, skip-checksum=$skip)"
+          if [ "$changes" == "cancelled" ] || [ "$matrix" == "cancelled" ] || [ "$skip" == "cancelled" ] || [ "$proxy" == "cancelled" ]; then
+            echo "::error::Self-test was cancelled (changes=$changes, matrix=$matrix, skip-checksum=$skip, proxy=$proxy)"
             exit 1
           fi
           echo "Self-test passed or skipped (markdown-only changes)."
