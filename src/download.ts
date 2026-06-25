@@ -57,26 +57,18 @@ export async function withRetry<T>(fn: () => Promise<T>, opts: RetryOptions = {}
  * (FR-3).
  */
 export async function downloadAsset(url: string, token?: string): Promise<string> {
-  // Vet the redirect chain's hosts before tool-cache fetches the body (NFR-1):
-  // tool-cache follows redirects internally and can't be inspected, so an
-  // untrusted target is rejected here, up front.
-  //
-  // The preflight uses global fetch, which — unlike tool-cache's http-client —
-  // doesn't honour runner proxy settings. So only an untrusted host (a
-  // PermanentError) is fatal; a network/proxy failure in the preflight must not
-  // block the proxy-capable tool-cache download (the binary is still SHA256
-  // verified, and tool-cache's client drops auth on cross-host redirects).
+  // Vet the redirect chain's hosts before tool-cache (which follows redirects
+  // opaquely) fetches the body (NFR-1). The preflight's global fetch ignores
+  // runner proxy settings, so only an untrusted host (PermanentError) is fatal;
+  // a network/proxy failure falls through to the proxy-capable, checksum-verified
+  // tool-cache download.
   try {
     await assertRedirectTrusted(url, token);
   } catch (err) {
-    // An untrusted host / malformed redirect is a hard security failure.
     if (err instanceof PermanentError) {
       throw err;
     }
-    // Only a genuine network/proxy failure is tolerated: a failed `fetch()`
-    // throws a TypeError, and global fetch ignores runner proxy settings, so we
-    // fall through to the proxy-capable tool-cache download (the binary is still
-    // SHA256 verified). Any other error is unexpected — let it surface.
+    // Only a failed fetch (TypeError) is tolerated; anything else is unexpected.
     if (!(err instanceof TypeError)) {
       throw err;
     }

@@ -34,10 +34,8 @@ function withoutAuth(headers: Record<string, string>): Record<string, string> {
 
 /**
  * fetch() that follows redirects manually so every hop's host is validated
- * against the GitHub allowlist (NFR-1) — a hijacked redirect to an attacker
- * host is refused instead of silently followed. The Authorization header is
- * stripped the moment a redirect crosses origins, so the repo-token never
- * leaks to the asset CDN github.com hands us off to (NFR-1).
+ * against the allowlist (NFR-1), and drops Authorization on a cross-origin
+ * redirect so the repo-token never leaks off github.com.
  */
 export async function secureFetch(url: string, headers: Record<string, string>): Promise<Response> {
   let currentUrl = url;
@@ -51,9 +49,8 @@ export async function secureFetch(url: string, headers: Record<string, string>):
       return resp;
     }
 
-    // A redirect status with a missing or unparsable Location is malformed —
-    // treat it as untrusted (PermanentError) rather than a trusted terminal,
-    // so a bad redirect can't slip through the preflight's fall-through path.
+    // A missing/unparsable Location is malformed — treat as untrusted, not a
+    // trusted terminal (else it could slip through the preflight fall-through).
     await resp.body?.cancel();
     const location = resp.headers.get('location');
     if (!location) {
@@ -66,7 +63,7 @@ export async function secureFetch(url: string, headers: Record<string, string>):
       throw new PermanentError(`Invalid redirect Location from ${currentUrl}: ${location}`);
     }
 
-    // Drop auth if the next hop crosses origins (don't leak the token off-host).
+    // Drop auth when the next hop crosses origins.
     if (next.origin !== new URL(currentUrl).origin) {
       currentHeaders = withoutAuth(currentHeaders);
     }
@@ -99,9 +96,7 @@ function assetHeaders(token?: string): Record<string, string> {
 
 /**
  * Vet a download URL's full redirect chain against the host allowlist (NFR-1)
- * without downloading the body. tool-cache's downloader follows redirects
- * internally and can't be inspected, so the binary asset URL is pre-flighted
- * here before being handed to it. Throws PermanentError on an untrusted host.
+ * without downloading the body. Throws PermanentError on an untrusted host.
  */
 export async function assertRedirectTrusted(url: string, token?: string): Promise<void> {
   const resp = await secureFetch(url, assetHeaders(token));

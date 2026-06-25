@@ -1,20 +1,11 @@
 import { PermanentError } from './errors';
 
 /**
- * Hosts trusted for GitHub release/API traffic (NFR-1). The action only ever
- * talks to GitHub: the REST API, the release-download endpoint, and the asset
- * CDN it redirects to. Everything else — including any redirect target — is
- * refused so a hijacked redirect can't point the download at an attacker host.
- *
- * Asset/checksum downloads 302 from `github.com` to the release-asset CDN. Both
- * the current host (`release-assets.githubusercontent.com`) and the previous one
- * (`objects.githubusercontent.com`) are listed, so the known CDN rename stays
- * covered; a future unknown rename fails loudly and is a one-line addition.
- *
- * The allowlist is an *explicit* set, not a `.githubusercontent.com` suffix:
- * `raw.`/`gist.githubusercontent.com` serve arbitrary user content and must
- * never be a trusted download target, or a hijacked redirect could feed us an
- * attacker-hosted checksums file.
+ * Hosts trusted for GitHub release/API traffic (NFR-1); any other host — including
+ * a redirect target — is refused. An explicit set, not a `.githubusercontent.com`
+ * suffix, because `raw.`/`gist.` serve arbitrary user content. Both the current
+ * and previous asset-CDN hosts are listed to cover the `objects.`→`release-assets.`
+ * rename.
  */
 const ALLOWED_HOSTS = new Set([
   'github.com',
@@ -28,11 +19,7 @@ export function isAllowedHost(hostname: string): boolean {
   return ALLOWED_HOSTS.has(hostname.toLowerCase());
 }
 
-/**
- * Throw a PermanentError unless `url` is an HTTPS URL on a trusted GitHub host
- * (NFR-1). A wrong host is a security failure, not a transient one, so it must
- * never be retried.
- */
+/** Throw a PermanentError unless `url` is an HTTPS URL on a trusted GitHub host (NFR-1). */
 export function assertAllowedHost(url: string, context: string): void {
   let parsed: URL;
   try {
