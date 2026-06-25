@@ -46,7 +46,7 @@ export function assertAllowedHost(url: string, context: string): void {
   if (!isAllowedHost(parsed.hostname)) {
     throw new PermanentError(
       `Refusing ${context} from untrusted host "${parsed.hostname}". ` +
-        'Allowed: github.com, api.github.com, release-assets/objects.githubusercontent.com.',
+        'Allowed: github.com, api.github.com, release-assets.githubusercontent.com, objects.githubusercontent.com.',
     );
   }
 }
