@@ -184,10 +184,13 @@ jobs:
           HTTP_PROXY: http://127.0.0.1:8888
           HTTPS_PROXY: http://127.0.0.1:8888
         with:
-          # A range forces version resolution via the GitHub API, which only the
-          # built-in fetch reaches (tool-cache already proxies and only hits
-          # github.com / the asset CDN) — so this exercises the new fetch proxying.
+          # A range + check-latest forces version resolution via the GitHub API,
+          # which only the built-in fetch reaches (tool-cache already proxies and
+          # only hits github.com / the asset CDN) — so this exercises the new
+          # fetch proxying. check-latest avoids a cache hit short-circuiting the
+          # API call and making the api.github.com assertion below vacuous.
           version: "3.x"
+          check-latest: "true"
           repo-token: ${{ github.token }}
       - run: task --version
 
