@@ -15,6 +15,7 @@ Built as a modern, reliable alternative to `arduino/setup-task`:
 - 🚫 **Host-pinned** — downloads and their redirects are restricted to GitHub hosts; a redirect to any other host is refused, and the token is never forwarded off `github.com`
 - ♻️ **Cached** — uses the runner tool cache to avoid re-downloading
 - 🔁 **Resilient** — retries transient network failures with exponential backoff
+- 🌐 **Proxy-aware** — honours `HTTP_PROXY` / `HTTPS_PROXY` / `NO_PROXY` for installs behind a corporate proxy or on self-hosted runners
 - 🧩 **Drop-in** — `version` / `repo-token` inputs are compatible with `arduino/setup-task`
 
 ## Usage
