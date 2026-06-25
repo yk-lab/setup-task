@@ -1,6 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PermanentError } from '../src/errors';
-import { createReleaseApi, fetchJson, fetchText, secureFetch } from '../src/github';
+import {
+  assertRedirectTrusted,
+  createReleaseApi,
+  fetchJson,
+  fetchText,
+  secureFetch,
+} from '../src/github';
 
 // Real allowlisted URLs (NFR-1): the host guard now rejects unknown hosts, so
 // tests must hit github.com / api.github.com / *.githubusercontent.com.
@@ -138,6 +144,15 @@ describe('secureFetch (redirect host validation, NFR-1)', () => {
     // Always redirect (to a trusted host) so only the hop cap can stop it.
     vi.stubGlobal('fetch', vi.fn(async () => redirectTo(ASSET_CDN_URL)));
     await expect(secureFetch(CHECKSUMS_URL, {})).rejects.toThrow(/Too many redirects/);
+  });
+
+  it('assertRedirectTrusted rejects an untrusted binary redirect target (NFR-1)', async () => {
+    // The binary preflight (download.ts) relies on this: github.com 302s to an
+    // attacker host -> PermanentError, before tool-cache ever downloads.
+    const ASSET_URL =
+      'https://github.com/go-task/task/releases/download/v3.51.1/task_linux_amd64.tar.gz';
+    vi.stubGlobal('fetch', vi.fn(async () => redirectTo('https://evil.example.com/asset')));
+    await expect(assertRedirectTrusted(ASSET_URL, 'tok')).rejects.toBeInstanceOf(PermanentError);
   });
 });
 

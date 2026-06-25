@@ -2,11 +2,16 @@ import * as tc from '@actions/tool-cache';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { downloadAsset, withRetry } from '../src/download';
 import { PermanentError } from '../src/errors';
+import { assertRedirectTrusted } from '../src/github';
 
-// @actions/core.warning writes to the Actions log; silence it in tests.
-vi.mock('@actions/core', () => ({ warning: vi.fn() }));
-// tool-cache performs the real download; stub it so preflight is what we test.
+// @actions/core writes to the Actions log; silence it in tests.
+vi.mock('@actions/core', () => ({ warning: vi.fn(), debug: vi.fn() }));
+// tool-cache performs the real download; stub it so we test orchestration only.
 vi.mock('@actions/tool-cache', () => ({ downloadTool: vi.fn(async () => '/tmp/task-archive') }));
+// Mock the HTTP module so download.test.ts stays free of network behaviour
+// (the host/redirect logic itself is covered in github.test.ts; CLAUDE.md keeps
+// network/IO out of these unit tests). We only assert downloadAsset's wiring.
+vi.mock('../src/github', () => ({ assertRedirectTrusted: vi.fn() }));
 
 // baseMs: 0 keeps backoff effectively instant (setTimeout(..., 0)).
 const fast = { baseMs: 0 };
@@ -71,34 +76,30 @@ describe('withRetry', () => {
   });
 });
 
-describe('downloadAsset (redirect preflight, NFR-1)', () => {
+describe('downloadAsset (redirect preflight wiring, NFR-1)', () => {
   const ASSET_URL =
     'https://github.com/go-task/task/releases/download/v3.51.1/task_linux_amd64.tar.gz';
-  const ASSET_CDN_URL =
-    'https://release-assets.githubusercontent.com/abc/task_linux_amd64.tar.gz';
 
-  afterEach(() => {
-    vi.unstubAllGlobals();
-    vi.clearAllMocks();
-  });
+  afterEach(() => vi.clearAllMocks());
 
-  it('downloads when the redirect chain stays on trusted hosts', async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(new Response(null, { status: 302, headers: { location: ASSET_CDN_URL } }))
-      .mockResolvedValueOnce(new Response('binary', { status: 200 }));
-    vi.stubGlobal('fetch', fetchMock);
-
+  it('preflights, then downloads via tool-cache', async () => {
+    vi.mocked(assertRedirectTrusted).mockResolvedValueOnce();
     await expect(downloadAsset(ASSET_URL, 'tok')).resolves.toBe('/tmp/task-archive');
+    expect(assertRedirectTrusted).toHaveBeenCalledWith(ASSET_URL, 'tok');
     expect(tc.downloadTool).toHaveBeenCalledOnce();
   });
 
-  it('refuses an untrusted redirect target before tool-cache downloads', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response(null, { status: 302, headers: { location: 'https://evil.example.com/x' } })),
-    );
+  it('refuses an untrusted host (PermanentError) before tool-cache runs', async () => {
+    vi.mocked(assertRedirectTrusted).mockRejectedValueOnce(new PermanentError('untrusted host'));
     await expect(downloadAsset(ASSET_URL, 'tok')).rejects.toBeInstanceOf(PermanentError);
     expect(tc.downloadTool).not.toHaveBeenCalled();
+  });
+
+  it('falls through to tool-cache when the preflight fails for a non-host reason (proxy)', async () => {
+    // A network/proxy error in the preflight must not block the proxy-capable
+    // tool-cache download (the binary is still checksum-verified downstream).
+    vi.mocked(assertRedirectTrusted).mockRejectedValueOnce(new Error('proxy unreachable'));
+    await expect(downloadAsset(ASSET_URL, 'tok')).resolves.toBe('/tmp/task-archive');
+    expect(tc.downloadTool).toHaveBeenCalledOnce();
   });
 });

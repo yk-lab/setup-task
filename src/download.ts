@@ -59,8 +59,21 @@ export async function withRetry<T>(fn: () => Promise<T>, opts: RetryOptions = {}
 export async function downloadAsset(url: string, token?: string): Promise<string> {
   // Vet the redirect chain's hosts before tool-cache fetches the body (NFR-1):
   // tool-cache follows redirects internally and can't be inspected, so an
-  // untrusted redirect target is rejected here, up front.
-  await assertRedirectTrusted(url, token);
+  // untrusted target is rejected here, up front.
+  //
+  // The preflight uses global fetch, which — unlike tool-cache's http-client —
+  // doesn't honour runner proxy settings. So only an untrusted host (a
+  // PermanentError) is fatal; a network/proxy failure in the preflight must not
+  // block the proxy-capable tool-cache download (the binary is still SHA256
+  // verified, and tool-cache's client drops auth on cross-host redirects).
+  try {
+    await assertRedirectTrusted(url, token);
+  } catch (err) {
+    if (err instanceof PermanentError) {
+      throw err;
+    }
+    core.debug(`Redirect preflight skipped (non-fatal): ${errorMessage(err)}`);
+  }
   const auth = token ? `Bearer ${token}` : undefined;
   return tc.downloadTool(url, undefined, auth);
 }
