@@ -21,7 +21,7 @@
 | FR-5 | SHA256 検証（既定 ON, BSD `*name` 形式対応） | `src/checksum.ts` |
 | FR-6〜FR-9 | 展開 / chmod / tool-cache / PATH / outputs | `src/main.ts` / `src/install.ts` |
 | FR-10 | `arduino/setup-task` 互換 inputs | `action.yml` |
-| NFR-1 | `repo-token` の `core.setSecret` マスク | `src/main.ts` |
+| NFR-1 | `repo-token` マスク + 取得ホスト/リダイレクト先検証 | `src/main.ts` / `src/url-guard.ts` / `src/github.ts` / `src/download.ts` |
 | NFR-3 | exact 指定時の一覧取得スキップ + cache 優先 | `src/version.ts` / `src/main.ts` |
 | §10.1 | ユニットテスト（version / platform / github / download / checksum） | `tests/*.test.ts` |
 | §10.2 | cache-hit 経路の self-test | `.github/workflows/self-test.yml` |
@@ -51,7 +51,6 @@
 |---|---|---|---|---|
 | [#39](https://github.com/yk-lab/setup-task/issues/39) | `[enhancement]` ジョブサマリに導入結果を出力（NFR-5） | `P3: low` | `enhancement` |
 | [#41](https://github.com/yk-lab/setup-task/issues/41) | `[test]` platform.test.ts を §9 全 os/arch 組合せに拡張 | `P3: low` | `test` |
-| [#42](https://github.com/yk-lab/setup-task/issues/42) | `[security]` ダウンロード先ホスト/リダイレクト先を検証（NFR-1） | `P2: medium` | `security` |
 | [#44](https://github.com/yk-lab/setup-task/issues/44) | `[enhancement]` フォールバックソースをサポート（FR-11） | `P3: low` | `enhancement` |
 | [#45](https://github.com/yk-lab/setup-task/issues/45) | `[chore]` Biome 導入を評価 | `P3: low` | `chore` |
 
@@ -77,3 +76,4 @@ v1.0.0 実装中に作成・解決済みの Issue（参考）。
 | [#22](https://github.com/yk-lab/setup-task/issues/22) | dist/ freshness 管理 | #36（main から dist/ を外し、リリース時ビルド方式へ） |
 | [#40](https://github.com/yk-lab/setup-task/issues/40) | `[enhancement]` リトライ回数・間隔を input 化（FR-4） | #51 |
 | [#43](https://github.com/yk-lab/setup-task/issues/43) | `[chore]` checksum 改ざんテストの重複ファイルを統合 | #52 |
+| [#42](https://github.com/yk-lab/setup-task/issues/42) | `[security]` ダウンロード先ホスト/リダイレクト先を検証（NFR-1） | #53 |

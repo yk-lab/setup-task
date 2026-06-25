@@ -15,6 +15,9 @@ export const GITHUB_API = 'https://api.github.com';
 export const DEFAULT_RETRIES = 3;
 export const DEFAULT_RETRY_BASE_MS = 1000;
 
+/** Cap on redirects followed while validating each hop's host (NFR-1). */
+export const MAX_REDIRECTS = 5;
+
 /**
  * Build the download URL for a release asset.
  * Tags on go-task are `v`-prefixed (e.g. v3.51.1).

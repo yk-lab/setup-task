@@ -1,6 +1,7 @@
 import * as semver from 'semver';
-import { GITHUB_API, REPO_NAME, REPO_OWNER } from './constants';
+import { GITHUB_API, MAX_REDIRECTS, REPO_NAME, REPO_OWNER } from './constants';
 import { PermanentError } from './errors';
+import { assertAllowedHost } from './url-guard';
 import type { ReleaseApi } from './version';
 
 interface ReleasePayload {
@@ -21,9 +22,60 @@ function githubHeaders(token?: string): Record<string, string> {
   return headers;
 }
 
+const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
+
+/** Drop the Authorization header so the repo-token is never sent off-host. */
+function withoutAuth(headers: Record<string, string>): Record<string, string> {
+  const copy = { ...headers };
+  delete copy.Authorization;
+  delete copy.authorization;
+  return copy;
+}
+
+/**
+ * fetch() that follows redirects manually so every hop's host is validated
+ * against the allowlist (NFR-1), and drops Authorization on a cross-origin
+ * redirect so the repo-token never leaks off github.com.
+ */
+export async function secureFetch(url: string, headers: Record<string, string>): Promise<Response> {
+  let currentUrl = url;
+  let currentHeaders = headers;
+
+  for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+    assertAllowedHost(currentUrl, 'request');
+    const resp = await fetch(currentUrl, { headers: currentHeaders, redirect: 'manual' });
+
+    if (!REDIRECT_STATUSES.has(resp.status)) {
+      return resp;
+    }
+
+    // A missing/unparsable Location is malformed — treat as untrusted, not a
+    // trusted terminal (else it could slip through the preflight fall-through).
+    await resp.body?.cancel();
+    const location = resp.headers.get('location');
+    if (!location) {
+      throw new PermanentError(`Redirect ${resp.status} without a Location from ${currentUrl}`);
+    }
+    let next: URL;
+    try {
+      next = new URL(location, currentUrl);
+    } catch {
+      throw new PermanentError(`Invalid redirect Location from ${currentUrl}: ${location}`);
+    }
+
+    // Drop auth when the next hop crosses origins.
+    if (next.origin !== new URL(currentUrl).origin) {
+      currentHeaders = withoutAuth(currentHeaders);
+    }
+    currentUrl = next.href;
+  }
+
+  throw new PermanentError(`Too many redirects (> ${MAX_REDIRECTS}) starting from ${url}`);
+}
+
 /** Fetch with GitHub auth, mapping 404 -> PermanentError and other non-OK -> Error. */
 async function fetchOk(url: string, token?: string): Promise<Response> {
-  const resp = await fetch(url, { headers: githubHeaders(token) });
+  const resp = await secureFetch(url, githubHeaders(token));
   if (resp.status === 404) {
     throw new PermanentError(`Not found (404): ${url}`);
   }
@@ -31,6 +83,24 @@ async function fetchOk(url: string, token?: string): Promise<Response> {
     throw new Error(`GitHub responded ${resp.status} for ${url}`);
   }
   return resp;
+}
+
+/** Headers for a raw asset request (no JSON Accept); auth optional. */
+function assetHeaders(token?: string): Record<string, string> {
+  const headers: Record<string, string> = { 'User-Agent': 'setup-task-action' };
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  return headers;
+}
+
+/**
+ * Vet a download URL's full redirect chain against the host allowlist (NFR-1)
+ * without downloading the body. Throws PermanentError on an untrusted host.
+ */
+export async function assertRedirectTrusted(url: string, token?: string): Promise<void> {
+  const resp = await secureFetch(url, assetHeaders(token));
+  await resp.body?.cancel();
 }
 
 /**

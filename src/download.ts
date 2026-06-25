@@ -2,6 +2,7 @@ import * as core from '@actions/core';
 import * as tc from '@actions/tool-cache';
 import { DEFAULT_RETRIES, DEFAULT_RETRY_BASE_MS } from './constants';
 import { PermanentError, errorMessage } from './errors';
+import { assertRedirectTrusted } from './github';
 
 export interface RetryOptions {
   retries?: number;
@@ -56,6 +57,23 @@ export async function withRetry<T>(fn: () => Promise<T>, opts: RetryOptions = {}
  * (FR-3).
  */
 export async function downloadAsset(url: string, token?: string): Promise<string> {
+  // Vet the redirect chain's hosts before tool-cache (which follows redirects
+  // opaquely) fetches the body (NFR-1). The preflight's global fetch ignores
+  // runner proxy settings, so only an untrusted host (PermanentError) is fatal;
+  // a network/proxy failure falls through to the proxy-capable, checksum-verified
+  // tool-cache download.
+  try {
+    await assertRedirectTrusted(url, token);
+  } catch (err) {
+    if (err instanceof PermanentError) {
+      throw err;
+    }
+    // Only a failed fetch (TypeError) is tolerated; anything else is unexpected.
+    if (!(err instanceof TypeError)) {
+      throw err;
+    }
+    core.debug(`Redirect preflight skipped (network/proxy failure): ${errorMessage(err)}`);
+  }
   const auth = token ? `Bearer ${token}` : undefined;
   return tc.downloadTool(url, undefined, auth);
 }

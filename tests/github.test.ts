@@ -1,6 +1,19 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createReleaseApi, fetchJson, fetchText } from '../src/github';
 import { PermanentError } from '../src/errors';
+import {
+  assertRedirectTrusted,
+  createReleaseApi,
+  fetchJson,
+  fetchText,
+  secureFetch,
+} from '../src/github';
+
+// Real allowlisted URLs (NFR-1): the host guard now rejects unknown hosts, so
+// tests must hit github.com / api.github.com / *.githubusercontent.com.
+const API_URL = 'https://api.github.com/repos/go-task/task/releases/latest';
+const CHECKSUMS_URL =
+  'https://github.com/go-task/task/releases/download/v3.51.1/task_checksums.txt';
+const ASSET_CDN_URL = 'https://release-assets.githubusercontent.com/abc/task_checksums.txt';
 
 /** Stub a single fixed response for every fetch() call. */
 function stubFetch(
@@ -16,21 +29,24 @@ function stubFetch(
   );
 }
 
+/** A 3xx redirect response pointing at `location`. */
+function redirectTo(location: string, status = 302): Response {
+  return new Response(null, { status, headers: { location } });
+}
+
 afterEach(() => vi.unstubAllGlobals());
 
 describe('fetchJson (content-type guard, FR-3)', () => {
   it('parses and returns the JSON body on a JSON response', async () => {
     stubFetch(JSON.stringify({ tag_name: 'v3.51.1' }), { contentType: 'application/json' });
-    await expect(fetchJson('https://api/releases/latest')).resolves.toEqual({
-      tag_name: 'v3.51.1',
-    });
+    await expect(fetchJson(API_URL)).resolves.toEqual({ tag_name: 'v3.51.1' });
   });
 
   it('rejects an HTML rate-limit page as a retryable Error pointing at repo-token', async () => {
     // 200 OK but non-JSON body = the "Unicorn" page. Must throw (transient),
     // not be parsed, so withRetry() can retry it.
     stubFetch('<html>rate limited</html>', { contentType: 'text/html; charset=utf-8' });
-    const err = await fetchJson('https://api/releases/latest').catch((e: unknown) => e);
+    const err = await fetchJson(API_URL).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(Error);
     expect(err).not.toBeInstanceOf(PermanentError);
     expect((err as Error).message).toMatch(/content-type/);
@@ -39,12 +55,12 @@ describe('fetchJson (content-type guard, FR-3)', () => {
 
   it('throws PermanentError on 404 (no such resource — never retried)', async () => {
     stubFetch('Not Found', { status: 404, contentType: 'application/json' });
-    await expect(fetchJson('https://api/releases/latest')).rejects.toBeInstanceOf(PermanentError);
+    await expect(fetchJson(API_URL)).rejects.toBeInstanceOf(PermanentError);
   });
 
   it('throws a (retryable) Error on other non-OK statuses', async () => {
     stubFetch('Server Error', { status: 503, contentType: 'application/json' });
-    const err = await fetchJson('https://api/releases/latest').catch((e: unknown) => e);
+    const err = await fetchJson(API_URL).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(Error);
     expect(err).not.toBeInstanceOf(PermanentError);
     expect((err as Error).message).toMatch(/503/);
@@ -54,16 +70,14 @@ describe('fetchJson (content-type guard, FR-3)', () => {
 describe('fetchText (checksums fetch, FR-3)', () => {
   it('returns the body for a plain-text checksums response', async () => {
     stubFetch(`${'a'.repeat(64)}  task_linux_amd64.tar.gz`, { contentType: 'text/plain' });
-    await expect(fetchText('https://example/checksums.txt')).resolves.toContain(
-      'task_linux_amd64',
-    );
+    await expect(fetchText(CHECKSUMS_URL)).resolves.toContain('task_linux_amd64');
   });
 
   it('rejects an HTML error page as a retryable Error (not a silent checksum miss)', async () => {
     stubFetch('<html><body>rate limited</body></html>', {
       contentType: 'text/html; charset=utf-8',
     });
-    const err = await fetchText('https://example/checksums.txt').catch((e: unknown) => e);
+    const err = await fetchText(CHECKSUMS_URL).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(Error);
     expect(err).not.toBeInstanceOf(PermanentError);
     expect((err as Error).message).toMatch(/content-type/);
@@ -71,7 +85,84 @@ describe('fetchText (checksums fetch, FR-3)', () => {
 
   it('throws PermanentError on 404', async () => {
     stubFetch('Not Found', { status: 404, contentType: 'text/plain' });
-    await expect(fetchText('https://example/checksums.txt')).rejects.toBeInstanceOf(PermanentError);
+    await expect(fetchText(CHECKSUMS_URL)).rejects.toBeInstanceOf(PermanentError);
+  });
+
+  it('rejects a redirect to an untrusted host with PermanentError (NFR-1)', async () => {
+    // The malicious-redirect injection required by NFR-1: github.com 302s to an
+    // attacker host; the checksums fetch must refuse it rather than follow.
+    vi.stubGlobal('fetch', vi.fn(async () => redirectTo('https://evil.example.com/checksums')));
+    await expect(fetchText(CHECKSUMS_URL)).rejects.toBeInstanceOf(PermanentError);
+  });
+});
+
+describe('secureFetch (redirect host validation, NFR-1)', () => {
+  it('follows a redirect to a trusted host and returns the final response', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(redirectTo(ASSET_CDN_URL))
+      .mockResolvedValueOnce(new Response('payload', { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const resp = await secureFetch(CHECKSUMS_URL, { 'User-Agent': 'x' });
+    expect(resp.status).toBe(200);
+    await expect(resp.text()).resolves.toBe('payload');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('rejects a redirect to an untrusted host with PermanentError', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => redirectTo('https://evil.example.com/x')));
+    await expect(secureFetch(CHECKSUMS_URL, {})).rejects.toBeInstanceOf(PermanentError);
+  });
+
+  it('rejects an initial untrusted URL without fetching', async () => {
+    const fetchMock = vi.fn(async () => new Response('should not run', { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(secureFetch('https://evil.example.com/', {})).rejects.toBeInstanceOf(
+      PermanentError,
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('drops the Authorization header on a cross-origin redirect (token never leaks)', async () => {
+    const seen: Array<Record<string, string>> = [];
+    const fetchMock = vi.fn(async (url: string, init: RequestInit) => {
+      seen.push({ ...(init.headers as Record<string, string>) });
+      return url.startsWith('https://github.com')
+        ? redirectTo(ASSET_CDN_URL)
+        : new Response('ok', { status: 200 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await secureFetch(CHECKSUMS_URL, { 'User-Agent': 'x', Authorization: 'Bearer secret' });
+
+    expect(seen[0].Authorization).toBe('Bearer secret'); // sent to github.com
+    expect(seen[1].Authorization).toBeUndefined(); // stripped for the CDN host
+  });
+
+  it('throws PermanentError after too many redirects', async () => {
+    // Always redirect (to a trusted host) so only the hop cap can stop it.
+    vi.stubGlobal('fetch', vi.fn(async () => redirectTo(ASSET_CDN_URL)));
+    await expect(secureFetch(CHECKSUMS_URL, {})).rejects.toThrow(/Too many redirects/);
+  });
+
+  it('rejects a redirect status with no Location header (malformed) as PermanentError', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 302 })));
+    await expect(secureFetch(CHECKSUMS_URL, {})).rejects.toBeInstanceOf(PermanentError);
+  });
+
+  it('rejects a redirect with an unparsable Location as PermanentError', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => redirectTo('http://')));
+    await expect(secureFetch(CHECKSUMS_URL, {})).rejects.toBeInstanceOf(PermanentError);
+  });
+
+  it('assertRedirectTrusted rejects an untrusted binary redirect target (NFR-1)', async () => {
+    // The binary preflight (download.ts) relies on this: github.com 302s to an
+    // attacker host -> PermanentError, before tool-cache ever downloads.
+    const ASSET_URL =
+      'https://github.com/go-task/task/releases/download/v3.51.1/task_linux_amd64.tar.gz';
+    vi.stubGlobal('fetch', vi.fn(async () => redirectTo('https://evil.example.com/asset')));
+    await expect(assertRedirectTrusted(ASSET_URL, 'tok')).rejects.toBeInstanceOf(PermanentError);
   });
 });
 
