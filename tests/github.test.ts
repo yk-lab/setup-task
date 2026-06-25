@@ -151,7 +151,7 @@ describe('secureFetch (redirect host validation, NFR-1)', () => {
     await expect(secureFetch(CHECKSUMS_URL, {})).rejects.toBeInstanceOf(PermanentError);
   });
 
-  it('rejects a redirect with an unparseable Location as PermanentError', async () => {
+  it('rejects a redirect with an unparsable Location as PermanentError', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => redirectTo('http://')));
     await expect(secureFetch(CHECKSUMS_URL, {})).rejects.toBeInstanceOf(PermanentError);
   });

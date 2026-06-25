@@ -51,7 +51,7 @@ export async function secureFetch(url: string, headers: Record<string, string>):
       return resp;
     }
 
-    // A redirect status with a missing or unparseable Location is malformed —
+    // A redirect status with a missing or unparsable Location is malformed —
     // treat it as untrusted (PermanentError) rather than a trusted terminal,
     // so a bad redirect can't slip through the preflight's fall-through path.
     await resp.body?.cancel();
