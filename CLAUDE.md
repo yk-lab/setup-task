@@ -58,7 +58,7 @@ Key design seams to preserve when editing:
 
 - **ESM + Node built-ins**: `import * as fs from 'node:fs'`, `target: ES2022`, `module: ESNext`. Strict TS with `noUnusedLocals`/`noUnusedParameters`.
 - **`FR-N` comments** (e.g. `(FR-5)`) reference numbered functional requirements in `要求仕様書.md`. Keep these traceable when touching the behavior they annotate.
-- **Tests cover pure logic only** — `version`, `platform`, `checksum` parsing. Network/IO modules (`github`, `download`, `install`, `main`) are validated end-to-end by `.github/workflows/self-test.yml`, which runs the built action across a Linux/macOS/Windows × `latest`/`3.x`/`3.51.1` matrix and asserts `task --version` matches the resolved output.
+- **Test layering** — unit tests (`vitest`) are deterministic and never touch the real network. Pure logic (`version`, `platform`, `checksum` parsing, `inputs`, `url-guard`) is tested directly; HTTP/IO modules are tested by **mocking the boundary**, not by hitting the network — `github`/`checksum` mock `./fetch`, `download` mocks `@actions/tool-cache` + `../src/github` (orchestration only), `proxy` mocks `undici`. The *real* IO path (live downloads, checksum verification, proxy egress) is validated end-to-end by `.github/workflows/self-test.yml`, which runs the built action across a Linux/macOS/Windows × `latest`/`3.x`/`3.51.1` matrix plus `skip-checksum` and behind-a-proxy jobs, asserting `task --version` matches the resolved output.
 
 ## Reference docs
 
