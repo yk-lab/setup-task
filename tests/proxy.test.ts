@@ -1,9 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const setGlobalDispatcher = vi.fn();
-const envAgent = vi.fn();
+// Hoisted alongside vi.mock so the factory can reference them safely.
+const { setGlobalDispatcher, envAgent } = vi.hoisted(() => ({
+  setGlobalDispatcher: vi.fn(),
+  envAgent: vi.fn(),
+}));
 vi.mock('undici', () => ({
-  setGlobalDispatcher: (...args: unknown[]) => setGlobalDispatcher(...args),
+  setGlobalDispatcher,
   // Construct via the spy so a test can make the constructor throw.
   EnvHttpProxyAgent: class {
     constructor(...args: unknown[]) {
@@ -24,7 +27,9 @@ beforeEach(() => {
     saved[v] = process.env[v];
     delete process.env[v];
   }
-  vi.clearAllMocks();
+  // resetAllMocks (not clearAllMocks) so a mockImplementation from one test
+  // doesn't leak into the next.
+  vi.resetAllMocks();
 });
 
 afterEach(() => {
@@ -55,19 +60,20 @@ describe('configureProxyFromEnv', () => {
     expect(setGlobalDispatcher).toHaveBeenCalledOnce();
   });
 
-  it('falls through an empty HTTP_PROXY to a real HTTPS_PROXY (|| not ??)', () => {
+  it('falls through an empty HTTP_PROXY to a real HTTPS_PROXY', () => {
     process.env.HTTP_PROXY = '';
     process.env.HTTPS_PROXY = 'http://proxy:8080';
     configureProxyFromEnv();
     expect(setGlobalDispatcher).toHaveBeenCalledOnce();
   });
 
-  it('throws an actionable error on a malformed proxy URL', () => {
-    process.env.HTTP_PROXY = 'not-a-url';
+  it('throws naming the variable (not its credential-bearing value) on a bad proxy URL', () => {
+    process.env.HTTP_PROXY = 'http://user:secret@bad';
     envAgent.mockImplementation(() => {
       throw new TypeError('Invalid URL');
     });
-    expect(() => configureProxyFromEnv()).toThrow(/Invalid proxy URL.*not-a-url/);
+    expect(() => configureProxyFromEnv()).toThrow(/Invalid proxy URL in HTTP_PROXY/);
+    expect(() => configureProxyFromEnv()).not.toThrow(/user:secret/);
     expect(setGlobalDispatcher).not.toHaveBeenCalled();
   });
 });

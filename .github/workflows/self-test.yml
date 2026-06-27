@@ -161,12 +161,22 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y tinyproxy
+          # apt may auto-start a tinyproxy service on :8888 (default config,
+          # logging to /var/log). Stop it so our instance owns the port and logs
+          # where we can read it.
+          sudo systemctl stop tinyproxy 2>/dev/null || sudo service tinyproxy stop 2>/dev/null || true
+          puser="$(id -un)"; pgroup="$(id -gn)"
           {
             echo "Port 8888"
             echo "Listen 127.0.0.1"
             echo "Timeout 600"
             echo "Allow 127.0.0.1"
+            # Stay as the runner user so the log/pid files are writable (avoid the
+            # packaged tinyproxy user's privilege drop swallowing the log).
+            echo "User $puser"
+            echo "Group $pgroup"
             echo 'LogFile "/tmp/tinyproxy.log"'
+            echo 'PidFile "/tmp/tinyproxy.pid"'
             echo "LogLevel Connect"
             echo "ConnectPort 443"
           } > /tmp/tinyproxy.conf
@@ -176,7 +186,9 @@ jobs:
             if curl -fsS -x http://127.0.0.1:8888 -o /dev/null https://github.com; then ok=1; break; fi
             sleep 1
           done
-          [ -n "$ok" ] || { echo "::error::tinyproxy did not come up"; cat /tmp/tinyproxy.log || true; exit 1; }
+          [ -n "$ok" ] || { echo "::error::tinyproxy did not come up"; cat /tmp/tinyproxy.log 2>/dev/null || true; exit 1; }
+          # Confirm our instance (not a leftover service) owns the port and logs.
+          test -f /tmp/tinyproxy.log || { echo "::error::tinyproxy is not logging to /tmp/tinyproxy.log"; exit 1; }
 
       - name: Run setup-task through the proxy
         uses: ./

@@ -53,8 +53,8 @@
 | [#41](https://github.com/yk-lab/setup-task/issues/41) | `[test]` platform.test.ts を §9 全 os/arch 組合せに拡張 | `P3: low` | `test` |
 | [#44](https://github.com/yk-lab/setup-task/issues/44) | `[enhancement]` フォールバックソースをサポート（FR-11） | `P3: low` | `enhancement` |
 | [#45](https://github.com/yk-lab/setup-task/issues/45) | `[chore]` Biome 導入を評価 | `P3: low` | `chore` |
-| [#55](https://github.com/yk-lab/setup-task/issues/55) | `[documentation]` テスト規約（CLAUDE.md）を stub-fetch unit test の実態に合わせる | `P3: low` | `documentation` |
-| [#56](https://github.com/yk-lab/setup-task/issues/56) | `[security]` 取得ボディにサイズ上限/タイムアウトを設ける | `P3: low` | `security` |
+| [#55](https://github.com/yk-lab/setup-task/issues/55) | `[documentation]` テスト規約（CLAUDE.md）を stub-fetch unit test の実態に合わせる | `P3: low` | `documentation` | |
+| [#56](https://github.com/yk-lab/setup-task/issues/56) | `[security]` 取得ボディにサイズ上限/タイムアウトを設ける | `P3: low` | `security` | |
 
 ### 未 Issue 化
 
