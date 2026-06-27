@@ -3,8 +3,13 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
+import { fetch } from '../src/fetch';
 import { fetchChecksum, parseChecksums, sha256File, verifyChecksum } from '../src/checksum';
 import { PermanentError } from '../src/errors';
+
+vi.mock('../src/fetch', () => ({ fetch: vi.fn() }));
+
+const mockedFetch = vi.mocked(fetch);
 
 describe('parseChecksums', () => {
   const sample = [
@@ -57,7 +62,9 @@ describe('sha256File / verifyChecksum', () => {
 // (FR-5, 要求仕様書 §10.3). The action hard-codes its download source (CON-2),
 // so the published checksums file is injected via a fetch stub.
 describe('fetchChecksum + verifyChecksum: tamper detection', () => {
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    mockedFetch.mockReset();
+  });
 
   const ASSET = 'task_linux_amd64.tar.gz';
   const genuine = Buffer.from('genuine task archive payload');
@@ -68,9 +75,8 @@ describe('fetchChecksum + verifyChecksum: tamper detection', () => {
   ].join('\n');
 
   function stubChecksums(body: string): void {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response(body, { status: 200, headers: { 'content-type': 'text/plain' } })),
+    mockedFetch.mockImplementation(
+      async () => new Response(body, { status: 200, headers: { 'content-type': 'text/plain' } }),
     );
   }
 

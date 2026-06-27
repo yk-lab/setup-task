@@ -1,6 +1,7 @@
 import * as semver from 'semver';
 import { GITHUB_API, MAX_REDIRECTS, REPO_NAME, REPO_OWNER } from './constants';
 import { PermanentError } from './errors';
+import { fetch } from './fetch';
 import { assertAllowedHost } from './url-guard';
 import type { ReleaseApi } from './version';
 

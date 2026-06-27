@@ -96,8 +96,9 @@ describe('downloadAsset (redirect preflight wiring, NFR-1)', () => {
   });
 
   it('falls through to tool-cache on a network/proxy fetch failure (TypeError)', async () => {
-    // A failed fetch() throws TypeError; global fetch ignores proxy settings, so
-    // this must not block the proxy-capable tool-cache download.
+    // A failed preflight fetch() throws TypeError; only a PermanentError (untrusted
+    // host) should block the download. Transient network/proxy failures fall through
+    // to tool-cache so the action still has a chance to fetch the binary.
     vi.mocked(assertRedirectTrusted).mockRejectedValueOnce(new TypeError('fetch failed'));
     await expect(downloadAsset(ASSET_URL, 'tok')).resolves.toBe('/tmp/task-archive');
     expect(tc.downloadTool).toHaveBeenCalledOnce();

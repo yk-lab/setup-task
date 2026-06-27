@@ -58,10 +58,9 @@ export async function withRetry<T>(fn: () => Promise<T>, opts: RetryOptions = {}
  */
 export async function downloadAsset(url: string, token?: string): Promise<string> {
   // Vet the redirect chain's hosts before tool-cache (which follows redirects
-  // opaquely) fetches the body (NFR-1). The preflight's global fetch ignores
-  // runner proxy settings, so only an untrusted host (PermanentError) is fatal;
-  // a network/proxy failure falls through to the proxy-capable, checksum-verified
-  // tool-cache download.
+  // opaquely) fetches the body (NFR-1). Only an untrusted host (PermanentError)
+  // is fatal; a transient network failure in the preflight falls through to the
+  // checksum-verified tool-cache download rather than blocking it.
   try {
     await assertRedirectTrusted(url, token);
   } catch (err) {
