@@ -19,6 +19,14 @@ export const DEFAULT_RETRY_BASE_MS = 1000;
 export const MAX_REDIRECTS = 5;
 
 /**
+ * Per-request timeout and response-body size cap (NFR-1): bound how long a fetch
+ * may hang and how much a (possibly hijacked) trusted host may stream. Both are
+ * generous — the API pages and `task_checksums.txt` sit far below the cap.
+ */
+export const REQUEST_TIMEOUT_MS = 30_000;
+export const MAX_RESPONSE_BYTES = 16 * 1024 * 1024;
+
+/**
  * Build the download URL for a release asset.
  * Tags on go-task are `v`-prefixed (e.g. v3.51.1).
  */

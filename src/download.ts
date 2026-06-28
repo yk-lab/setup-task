@@ -59,7 +59,7 @@ export async function withRetry<T>(fn: () => Promise<T>, opts: RetryOptions = {}
 export async function downloadAsset(url: string, token?: string): Promise<string> {
   // Vet the redirect chain's hosts before tool-cache (which follows redirects
   // opaquely) fetches the body (NFR-1). Only an untrusted host (PermanentError)
-  // is fatal; a transient network failure in the preflight falls through to the
+  // is fatal; a preflight that simply couldn't complete falls through to the
   // checksum-verified tool-cache download rather than blocking it.
   try {
     await assertRedirectTrusted(url, token);
@@ -67,12 +67,20 @@ export async function downloadAsset(url: string, token?: string): Promise<string
     if (err instanceof PermanentError) {
       throw err;
     }
-    // Only a failed fetch (TypeError) is tolerated; anything else is unexpected.
-    if (!(err instanceof TypeError)) {
+    // "Couldn't run" = a failed fetch (TypeError) or a timeout (DOMException);
+    // anything else is unexpected.
+    const couldNotRun =
+      err instanceof TypeError ||
+      (err instanceof DOMException && (err.name === 'AbortError' || err.name === 'TimeoutError'));
+    if (!couldNotRun) {
       throw err;
     }
-    core.debug(`Redirect preflight skipped (network/proxy failure): ${errorMessage(err)}`);
+    core.debug(`Redirect preflight skipped (${errorMessage(err)}); proceeding to tool-cache.`);
   }
+  // tool-cache's downloader exposes no AbortSignal/size limit, and we keep it for
+  // its proxy support (#54); the binary transfer is bounded only by the job
+  // timeout (hangs) and runner disk (size), and SHA256 verification (FR-5)
+  // rejects a tampered/oversized payload before it is cached.
   const auth = token ? `Bearer ${token}` : undefined;
   return tc.downloadTool(url, undefined, auth);
 }

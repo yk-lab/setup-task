@@ -104,6 +104,16 @@ describe('downloadAsset (redirect preflight wiring, NFR-1)', () => {
     expect(tc.downloadTool).toHaveBeenCalledOnce();
   });
 
+  it('falls through to tool-cache on a preflight timeout (DOMException)', async () => {
+    // AbortSignal.timeout rejects with a DOMException, not a TypeError — it must
+    // also be treated as "preflight couldn't run", not block the download.
+    vi.mocked(assertRedirectTrusted).mockRejectedValueOnce(
+      new DOMException('The operation timed out', 'TimeoutError'),
+    );
+    await expect(downloadAsset(ASSET_URL, 'tok')).resolves.toBe('/tmp/task-archive');
+    expect(tc.downloadTool).toHaveBeenCalledOnce();
+  });
+
   it('propagates an unexpected (non-network) preflight error', async () => {
     vi.mocked(assertRedirectTrusted).mockRejectedValueOnce(new Error('unexpected'));
     await expect(downloadAsset(ASSET_URL, 'tok')).rejects.toThrow('unexpected');

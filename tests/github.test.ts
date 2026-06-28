@@ -6,6 +6,7 @@ import {
   createReleaseApi,
   fetchJson,
   fetchText,
+  readCappedText,
   secureFetch,
 } from '../src/github';
 
@@ -45,6 +46,11 @@ afterEach(() => {
 describe('fetchJson (content-type guard, FR-3)', () => {
   it('parses and returns the JSON body on a JSON response', async () => {
     stubFetch(JSON.stringify({ tag_name: 'v3.51.1' }), { contentType: 'application/json' });
+    await expect(fetchJson(API_URL)).resolves.toEqual({ tag_name: 'v3.51.1' });
+  });
+
+  it('strips a leading BOM before parsing (as resp.json() did)', async () => {
+    stubFetch(`\uFEFF${JSON.stringify({ tag_name: 'v3.51.1' })}`, { contentType: 'application/json' });
     await expect(fetchJson(API_URL)).resolves.toEqual({ tag_name: 'v3.51.1' });
   });
 
@@ -165,6 +171,28 @@ describe('secureFetch (redirect host validation, NFR-1)', () => {
       'https://github.com/go-task/task/releases/download/v3.51.1/task_linux_amd64.tar.gz';
     mockedFetch.mockImplementation(async () => redirectTo('https://evil.example.com/asset'));
     await expect(assertRedirectTrusted(ASSET_URL, 'tok')).rejects.toBeInstanceOf(PermanentError);
+  });
+
+  it('passes an abort signal (per-request timeout) to fetch (NFR-1)', async () => {
+    mockedFetch.mockResolvedValueOnce(new Response('ok', { status: 200 }));
+    await secureFetch(CHECKSUMS_URL, {});
+    expect(mockedFetch).toHaveBeenCalledWith(
+      CHECKSUMS_URL,
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
+  });
+});
+
+describe('readCappedText (response size cap, NFR-1)', () => {
+  it('returns the body when under the cap', async () => {
+    await expect(readCappedText(new Response('hello'), CHECKSUMS_URL, 100)).resolves.toBe('hello');
+  });
+
+  it('throws PermanentError when the streamed body exceeds the cap', async () => {
+    // The streamed byte counter is the defence against an unbounded/hijacked body.
+    await expect(
+      readCappedText(new Response('abcdefghij'), CHECKSUMS_URL, 4),
+    ).rejects.toBeInstanceOf(PermanentError);
   });
 });
 

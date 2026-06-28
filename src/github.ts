@@ -1,5 +1,12 @@
 import * as semver from 'semver';
-import { GITHUB_API, MAX_REDIRECTS, REPO_NAME, REPO_OWNER } from './constants';
+import {
+  GITHUB_API,
+  MAX_REDIRECTS,
+  MAX_RESPONSE_BYTES,
+  REPO_NAME,
+  REPO_OWNER,
+  REQUEST_TIMEOUT_MS,
+} from './constants';
 import { PermanentError } from './errors';
 import { fetch } from './fetch';
 import { assertAllowedHost } from './url-guard';
@@ -41,10 +48,14 @@ function withoutAuth(headers: Record<string, string>): Record<string, string> {
 export async function secureFetch(url: string, headers: Record<string, string>): Promise<Response> {
   let currentUrl = url;
   let currentHeaders = headers;
+  // One deadline for the whole operation — redirects plus the final body read
+  // (the returned response's body stays bound to this signal). A hang aborts
+  // and surfaces as a transient error withRetry can retry (NFR-1).
+  const signal = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
 
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
     assertAllowedHost(currentUrl, 'request');
-    const resp = await fetch(currentUrl, { headers: currentHeaders, redirect: 'manual' });
+    const resp = await fetch(currentUrl, { headers: currentHeaders, redirect: 'manual', signal });
 
     if (!REDIRECT_STATUSES.has(resp.status)) {
       return resp;
@@ -121,18 +132,51 @@ function guardContentType(resp: Response, url: string, isExpected: (contentType:
   }
 }
 
+/**
+ * Read a response body as UTF-8 text, refusing bodies over `maxBytes` (NFR-1):
+ * `resp.text()` buffers an unbounded stream, so a hijacked trusted host could
+ * exhaust memory. Count bytes as they arrive and bail (PermanentError — retrying
+ * just re-streams the same oversized body).
+ */
+export async function readCappedText(
+  resp: Response,
+  url: string,
+  maxBytes: number = MAX_RESPONSE_BYTES,
+): Promise<string> {
+  if (!resp.body) {
+    return '';
+  }
+  const reader = resp.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+    total += value.byteLength;
+    if (total > maxBytes) {
+      await reader.cancel().catch(() => undefined); // don't let a cancel error mask the limit
+      throw new PermanentError(`Response from ${url} exceeded the ${maxBytes}-byte limit.`);
+    }
+    chunks.push(value);
+  }
+  return Buffer.concat(chunks).toString('utf-8');
+}
+
 /** Fetch and parse JSON, requiring a JSON content-type (FR-3). */
 export async function fetchJson<T>(url: string, token?: string): Promise<T> {
   const resp = await fetchOk(url, token);
   guardContentType(resp, url, (contentType) => contentType.includes('json'));
-  return (await resp.json()) as T;
+  // Strip a leading BOM the way resp.json() did — JSON.parse rejects it.
+  return JSON.parse((await readCappedText(resp, url)).replace(/^\uFEFF/, '')) as T;
 }
 
 /** Fetch a text body (the checksums file), rejecting HTML error pages (FR-3). */
 export async function fetchText(url: string, token?: string): Promise<string> {
   const resp = await fetchOk(url, token);
   guardContentType(resp, url, (contentType) => !contentType.includes('html'));
-  return resp.text();
+  return readCappedText(resp, url);
 }
 
 /** GitHub-backed ReleaseApi implementation. */
