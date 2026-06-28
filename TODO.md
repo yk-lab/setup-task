@@ -50,7 +50,6 @@
 | # | 概要 | 優先度 | ラベル | 備考 |
 |---|---|---|---|---|
 | [#39](https://github.com/yk-lab/setup-task/issues/39) | `[enhancement]` ジョブサマリに導入結果を出力（NFR-5） | `P3: low` | `enhancement` |
-| [#41](https://github.com/yk-lab/setup-task/issues/41) | `[test]` platform.test.ts を §9 全 os/arch 組合せに拡張 | `P3: low` | `test` |
 | [#44](https://github.com/yk-lab/setup-task/issues/44) | `[enhancement]` フォールバックソースをサポート（FR-11） | `P3: low` | `enhancement` |
 | [#45](https://github.com/yk-lab/setup-task/issues/45) | `[chore]` Biome 導入を評価 | `P3: low` | `chore` |
 
@@ -81,3 +80,4 @@ v1.0.0 実装中に作成・解決済みの Issue（参考）。
 | [#55](https://github.com/yk-lab/setup-task/issues/55) | `[documentation]` テスト規約（CLAUDE.md）を stub-fetch unit test の実態に合わせる | #58 |
 | [#59](https://github.com/yk-lab/setup-task/issues/59) | `[ci]` paths-filter が root 直下の .md を docs 扱いせずフル CI が走る | #60 |
 | [#56](https://github.com/yk-lab/setup-task/issues/56) | `[security]` 取得ボディにサイズ上限/タイムアウトを設ける | #61 |
+| [#41](https://github.com/yk-lab/setup-task/issues/41) | `[test]` platform.test.ts を §9 全 os/arch 組合せに拡張 | #62 |

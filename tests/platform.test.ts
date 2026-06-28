@@ -1,44 +1,65 @@
 import { describe, expect, it } from 'vitest';
 import { resolveAsset } from '../src/platform';
 
-describe('resolveAsset', () => {
-  it('maps linux/x64 to task_linux_amd64.tar.gz', () => {
-    const asset = resolveAsset('linux', 'x64');
-    expect(asset).toMatchObject({
-      os: 'linux',
-      arch: 'amd64',
-      assetName: 'task_linux_amd64.tar.gz',
-      ext: 'tar.gz',
-      binaryName: 'task',
+// 要求仕様書 §9 platform matrix — the source of truth, kept independent of
+// src/platform.ts's `SUPPORTED` so this test actually pins §9 (a drift in either
+// fails here). Keys are go-task tokens; values map back to Node's process values.
+const NODE_PLATFORM: Record<string, string> = {
+  linux: 'linux',
+  darwin: 'darwin',
+  windows: 'win32',
+  freebsd: 'freebsd',
+};
+const NODE_ARCH: Record<string, string> = {
+  '386': 'ia32',
+  amd64: 'x64',
+  arm: 'arm',
+  arm64: 'arm64',
+  riscv64: 'riscv64',
+};
+const ALL_ARCHES = ['386', 'amd64', 'arm', 'arm64', 'riscv64'];
+const MATRIX: Record<string, string[]> = {
+  linux: ['386', 'amd64', 'arm', 'arm64', 'riscv64'],
+  darwin: ['amd64', 'arm64'],
+  windows: ['386', 'amd64', 'arm64'],
+  freebsd: ['386', 'amd64', 'arm', 'arm64'],
+};
+
+const supported = Object.entries(MATRIX).flatMap(([os, arches]) =>
+  arches.map((arch) => ({ os, arch })),
+);
+const unsupported = Object.entries(MATRIX).flatMap(([os, arches]) =>
+  ALL_ARCHES.filter((arch) => !arches.includes(arch)).map((arch) => ({ os, arch })),
+);
+
+describe('resolveAsset — §9 platform matrix', () => {
+  it.each(supported)('maps $os/$arch to the published asset', ({ os, arch }) => {
+    const ext = os === 'windows' ? 'zip' : 'tar.gz';
+    expect(resolveAsset(NODE_PLATFORM[os], NODE_ARCH[arch])).toMatchObject({
+      os,
+      arch,
+      assetName: `task_${os}_${arch}.${ext}`,
+      ext,
+      binaryName: os === 'windows' ? 'task.exe' : 'task',
     });
   });
 
-  it('maps darwin/arm64 to task_darwin_arm64.tar.gz', () => {
-    expect(resolveAsset('darwin', 'arm64').assetName).toBe('task_darwin_arm64.tar.gz');
+  it.each(unsupported)('rejects unsupported $os/$arch', ({ os, arch }) => {
+    // The arch override targets os/arch combos a node arch alone couldn't reach.
+    expect(() => resolveAsset(NODE_PLATFORM[os], 'x64', arch)).toThrow(/Unsupported os\/arch/);
   });
+});
 
-  it('maps win32/x64 to a zip with task.exe', () => {
-    const asset = resolveAsset('win32', 'x64');
-    expect(asset.assetName).toBe('task_windows_amd64.zip');
-    expect(asset.ext).toBe('zip');
-    expect(asset.binaryName).toBe('task.exe');
-  });
-
-  it('honors an architecture override', () => {
+describe('resolveAsset — overrides & errors', () => {
+  it('lets the architecture override win over the detected node arch', () => {
     expect(resolveAsset('linux', 'x64', 'arm64').assetName).toBe('task_linux_arm64.tar.gz');
-  });
-
-  it('auto-detects linux/riscv64 without an override', () => {
-    // process.arch on a riscv64 runner is 'riscv64'; it must map to the asset.
-    expect(resolveAsset('linux', 'riscv64').assetName).toBe('task_linux_riscv64.tar.gz');
   });
 
   it('throws on an unsupported OS', () => {
     expect(() => resolveAsset('aix', 'x64')).toThrow(/Unsupported OS/);
   });
 
-  it('throws on an unsupported os/arch combination', () => {
-    // darwin only ships amd64/arm64 — riscv64 is invalid.
-    expect(() => resolveAsset('darwin', 'x64', 'riscv64')).toThrow(/Unsupported os\/arch/);
+  it('throws on an unmapped node architecture', () => {
+    expect(() => resolveAsset('linux', 'mips')).toThrow(/Unsupported architecture/);
   });
 });
