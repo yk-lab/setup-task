@@ -34,6 +34,7 @@ jobs:
             src:
               - '**/*'
               - '!**/*.md'
+              - '!*.md' # `!**/*.md` doesn't match root-level files (e.g. README.md)
               - '!.github/workflows/docs.yml'
 
   check:
