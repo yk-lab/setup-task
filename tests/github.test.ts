@@ -6,6 +6,7 @@ import {
   createReleaseApi,
   fetchJson,
   fetchText,
+  readCappedText,
   secureFetch,
 } from '../src/github';
 
@@ -165,6 +166,29 @@ describe('secureFetch (redirect host validation, NFR-1)', () => {
       'https://github.com/go-task/task/releases/download/v3.51.1/task_linux_amd64.tar.gz';
     mockedFetch.mockImplementation(async () => redirectTo('https://evil.example.com/asset'));
     await expect(assertRedirectTrusted(ASSET_URL, 'tok')).rejects.toBeInstanceOf(PermanentError);
+  });
+
+  it('passes an abort signal (per-request timeout) to fetch (NFR-1)', async () => {
+    mockedFetch.mockResolvedValueOnce(new Response('ok', { status: 200 }));
+    await secureFetch(CHECKSUMS_URL, {});
+    expect(mockedFetch).toHaveBeenCalledWith(
+      CHECKSUMS_URL,
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
+  });
+});
+
+describe('readCappedText (response size cap, NFR-1)', () => {
+  it('returns the body when under the cap', async () => {
+    await expect(readCappedText(new Response('hello'), CHECKSUMS_URL, 100)).resolves.toBe('hello');
+  });
+
+  it('throws PermanentError when the streamed body exceeds the cap', async () => {
+    // No reliable Content-Length on a streamed body, so the byte counter is what
+    // must stop it (the real defence against an unbounded/hijacked stream).
+    await expect(
+      readCappedText(new Response('abcdefghij'), CHECKSUMS_URL, 4),
+    ).rejects.toBeInstanceOf(PermanentError);
   });
 });
 
