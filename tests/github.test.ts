@@ -49,6 +49,11 @@ describe('fetchJson (content-type guard, FR-3)', () => {
     await expect(fetchJson(API_URL)).resolves.toEqual({ tag_name: 'v3.51.1' });
   });
 
+  it('strips a leading BOM before parsing (as resp.json() did)', async () => {
+    stubFetch(`\uFEFF${JSON.stringify({ tag_name: 'v3.51.1' })}`, { contentType: 'application/json' });
+    await expect(fetchJson(API_URL)).resolves.toEqual({ tag_name: 'v3.51.1' });
+  });
+
   it('rejects an HTML rate-limit page as a retryable Error pointing at repo-token', async () => {
     // 200 OK but non-JSON body = the "Unicorn" page. Must throw (transient),
     // not be parsed, so withRetry() can retry it.
@@ -184,8 +189,7 @@ describe('readCappedText (response size cap, NFR-1)', () => {
   });
 
   it('throws PermanentError when the streamed body exceeds the cap', async () => {
-    // No reliable Content-Length on a streamed body, so the byte counter is what
-    // must stop it (the real defence against an unbounded/hijacked stream).
+    // The streamed byte counter is the defence against an unbounded/hijacked body.
     await expect(
       readCappedText(new Response('abcdefghij'), CHECKSUMS_URL, 4),
     ).rejects.toBeInstanceOf(PermanentError);

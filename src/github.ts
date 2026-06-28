@@ -133,21 +133,16 @@ function guardContentType(resp: Response, url: string, isExpected: (contentType:
 }
 
 /**
- * Read a response body as UTF-8 text, refusing bodies over `maxBytes` (NFR-1).
- * `resp.text()` would buffer an unbounded stream, so a trusted host hijacked
- * into streaming forever could exhaust memory; instead count bytes as they
- * arrive and bail (PermanentError — retrying just re-streams the same oversized
- * body). Exported for testing.
+ * Read a response body as UTF-8 text, refusing bodies over `maxBytes` (NFR-1):
+ * `resp.text()` buffers an unbounded stream, so a hijacked trusted host could
+ * exhaust memory. Count bytes as they arrive and bail (PermanentError — retrying
+ * just re-streams the same oversized body).
  */
 export async function readCappedText(
   resp: Response,
   url: string,
   maxBytes: number = MAX_RESPONSE_BYTES,
 ): Promise<string> {
-  const declared = Number(resp.headers.get('content-length'));
-  if (Number.isFinite(declared) && declared > maxBytes) {
-    throw new PermanentError(`Response from ${url} declares ${declared} bytes (limit ${maxBytes}).`);
-  }
   if (!resp.body) {
     return '';
   }
@@ -161,7 +156,7 @@ export async function readCappedText(
     }
     total += value.byteLength;
     if (total > maxBytes) {
-      await reader.cancel();
+      await reader.cancel().catch(() => undefined); // don't let a cancel error mask the limit
       throw new PermanentError(`Response from ${url} exceeded the ${maxBytes}-byte limit.`);
     }
     chunks.push(value);
@@ -173,7 +168,8 @@ export async function readCappedText(
 export async function fetchJson<T>(url: string, token?: string): Promise<T> {
   const resp = await fetchOk(url, token);
   guardContentType(resp, url, (contentType) => contentType.includes('json'));
-  return JSON.parse(await readCappedText(resp, url)) as T;
+  // Strip a leading BOM the way resp.json() did — JSON.parse rejects it.
+  return JSON.parse((await readCappedText(resp, url)).replace(/^\uFEFF/, '')) as T;
 }
 
 /** Fetch a text body (the checksums file), rejecting HTML error pages (FR-3). */
