@@ -17,7 +17,8 @@ const NODE_ARCH: Record<string, string> = {
   arm64: 'arm64',
   riscv64: 'riscv64',
 };
-const ALL_ARCHES = ['386', 'amd64', 'arm', 'arm64', 'riscv64'];
+// Derived from NODE_ARCH so the two can't drift.
+const ALL_ARCHES = Object.keys(NODE_ARCH);
 const MATRIX: Record<string, string[]> = {
   linux: ['386', 'amd64', 'arm', 'arm64', 'riscv64'],
   darwin: ['amd64', 'arm64'],
