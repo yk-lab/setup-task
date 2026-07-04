@@ -32,7 +32,6 @@
 | # | 概要 | 優先度 | 参照 | 備考 |
 |---|---|---|---|---|
 | [#9](https://github.com/yk-lab/setup-task/issues/9) | `[chore]` lefthook で pre-push に `pnpm run all` を仕込む | `P3: low` | `ci` `chore` | stale dist / 未 lint コミット防止 |
-| [#23](https://github.com/yk-lab/setup-task/issues/23) | `[ci]` ワークフロー静的解析（`actionlint` / `zizmor`）を CI に追加 | `P3: low` | `security` `ci` | 既存 WF のセキュリティ lint |
 
 ### 未対応・進行中（リリース運用 / M3・M4）
 
@@ -81,3 +80,4 @@ v1.0.0 実装中に作成・解決済みの Issue（参考）。
 | [#59](https://github.com/yk-lab/setup-task/issues/59) | `[ci]` paths-filter が root 直下の .md を docs 扱いせずフル CI が走る | #60 |
 | [#56](https://github.com/yk-lab/setup-task/issues/56) | `[security]` 取得ボディにサイズ上限/タイムアウトを設ける | #61 |
 | [#41](https://github.com/yk-lab/setup-task/issues/41) | `[test]` platform.test.ts を §9 全 os/arch 組合せに拡張 | #62 |
+| [#23](https://github.com/yk-lab/setup-task/issues/23) | `[ci]` ワークフロー静的解析（actionlint / zizmor）を CI に追加 | #68 |
