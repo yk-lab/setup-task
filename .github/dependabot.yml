@@ -4,6 +4,10 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    # Let a release age before Dependabot proposes it (supply-chain cooldown,
+    # mirrors pnpm's minimumReleaseAge).
+    cooldown:
+      default-days: 7
     groups:
       actions-toolkit:
         patterns:
@@ -18,3 +22,5 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7

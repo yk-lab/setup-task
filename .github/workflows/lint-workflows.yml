@@ -1,0 +1,54 @@
+name: Lint workflows
+
+# Static analysis of the workflow files themselves (#23). Runs only when a
+# workflow changes — actionlint checks syntax/expressions + shellchecks `run:`
+# blocks; zizmor audits for security issues (injection, excessive permissions,
+# artipacked credentials, ...).
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/**']
+  pull_request:
+    paths: ['.github/workflows/**']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  actionlint:
+    name: actionlint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      # Pinned binary via rhysd's own installer (script pinned by SHA = v1.7.12,
+      # binary version passed explicitly); shellcheck is preinstalled on the runner.
+      - name: Run actionlint
+        # `dist/` is built at release time and gitignored, so the local action's
+        # main (dist/index.js) is absent during static analysis — ignore that one
+        # false positive (self-test.yml builds dist before `uses: ./`).
+        run: |
+          bash <(curl --proto '=https' --tlsv1.2 -fsSL \
+            https://raw.githubusercontent.com/rhysd/actionlint/914e7df21a07ef503a81201c76d2b11c789d3fca/scripts/download-actionlint.bash) \
+            1.7.12
+          ./actionlint -color -ignore 'file "dist/index\.js" does not exist'
+
+  zizmor:
+    name: zizmor
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      # pipx is preinstalled on ubuntu-latest; exits non-zero on any finding.
+      - name: Run zizmor
+        run: pipx run zizmor==1.26.1 .
+        env:
+          GH_TOKEN: ${{ github.token }}
