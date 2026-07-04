@@ -43,9 +43,7 @@ export async function resolveVersion(
   const match = semver.maxSatisfying(versions, spec);
   if (!match) {
     const sample = versions.slice(0, 5).join(', ');
-    throw new Error(
-      `No go-task release satisfies "${spec}". Available (newest few): ${sample}.`,
-    );
+    throw new Error(`No go-task release satisfies "${spec}". Available (newest few): ${sample}.`);
   }
   return match;
 }

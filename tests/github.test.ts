@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fetch } from '../src/fetch';
 import { PermanentError } from '../src/errors';
+import { fetch } from '../src/fetch';
 import {
   assertRedirectTrusted,
   createReleaseApi,
@@ -22,10 +22,7 @@ const CHECKSUMS_URL =
 const ASSET_CDN_URL = 'https://release-assets.githubusercontent.com/abc/task_checksums.txt';
 
 /** Stub a single fixed response for every fetch() call. */
-function stubFetch(
-  body: string,
-  init: { status?: number; contentType?: string } = {},
-): void {
+function stubFetch(body: string, init: { status?: number; contentType?: string } = {}): void {
   const headers: Record<string, string> = init.contentType
     ? { 'content-type': init.contentType }
     : {};
@@ -50,7 +47,9 @@ describe('fetchJson (content-type guard, FR-3)', () => {
   });
 
   it('strips a leading BOM before parsing (as resp.json() did)', async () => {
-    stubFetch(`\uFEFF${JSON.stringify({ tag_name: 'v3.51.1' })}`, { contentType: 'application/json' });
+    stubFetch(`\uFEFF${JSON.stringify({ tag_name: 'v3.51.1' })}`, {
+      contentType: 'application/json',
+    });
     await expect(fetchJson(API_URL)).resolves.toEqual({ tag_name: 'v3.51.1' });
   });
 

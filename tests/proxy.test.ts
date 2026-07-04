@@ -18,7 +18,14 @@ vi.mock('@actions/core', () => ({ info: vi.fn(), warning: vi.fn() }));
 
 import { configureProxyFromEnv } from '../src/proxy';
 
-const PROXY_VARS = ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy', 'NO_PROXY', 'no_proxy'];
+const PROXY_VARS = [
+  'HTTP_PROXY',
+  'HTTPS_PROXY',
+  'http_proxy',
+  'https_proxy',
+  'NO_PROXY',
+  'no_proxy',
+];
 let saved: Record<string, string | undefined>;
 
 beforeEach(() => {

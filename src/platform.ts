@@ -51,9 +51,7 @@ export function resolveAsset(
 ): AssetInfo {
   const os = OS_MAP[platform];
   if (!os) {
-    throw new Error(
-      `Unsupported OS "${platform}". Supported: ${Object.keys(OS_MAP).join(', ')}.`,
-    );
+    throw new Error(`Unsupported OS "${platform}". Supported: ${Object.keys(OS_MAP).join(', ')}.`);
   }
 
   const override = archOverride?.trim();
