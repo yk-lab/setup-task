@@ -31,7 +31,6 @@
 
 | # | 概要 | 優先度 | 参照 | 備考 |
 |---|---|---|---|---|
-| [#9](https://github.com/yk-lab/setup-task/issues/9) | `[chore]` lefthook で pre-push に `pnpm run all` を仕込む | `P3: low` | `ci` `chore` | stale dist / 未 lint コミット防止 |
 
 ### 未対応・進行中（リリース運用 / M3・M4）
 
@@ -82,3 +81,4 @@ v1.0.0 実装中に作成・解決済みの Issue（参考）。
 | [#45](https://github.com/yk-lab/setup-task/issues/45) | `[chore]` Biome 導入を評価 → 一元化採用 | #70 |
 | [#38](https://github.com/yk-lab/setup-task/issues/38) | `[docs]` README に arduino/setup-task からの移行ガイドを追加 | #72 |
 | [#73](https://github.com/yk-lab/setup-task/issues/73) | `[docs]` セキュア路線へポジショニング見直し（arduino v3 を受けて） | #72 |
+| [#9](https://github.com/yk-lab/setup-task/issues/9) | `[chore]` lefthook で pre-push に `pnpm run all` を仕込む | #71 |

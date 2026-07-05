@@ -24,6 +24,11 @@ pnpm exec vitest run tests/version.test.ts        # run a single test file
 pnpm exec vitest run -t "resolves a semver range" # run tests matching a name
 ```
 
+A **lefthook `pre-push` hook** runs typecheck / lint / test / build in parallel so
+CI failures surface locally first. `pnpm install` sets it up automatically
+(lefthook's post-install is approved in `pnpm-workspace.yaml` `allowBuilds`); run
+`pnpm exec lefthook install` if the hook ever goes missing.
+
 ## Critical: `dist/` is built at release time, NOT committed to source branches
 
 GitHub Actions runs the bundled `dist/index.js` directly (see `action.yml` → `main: dist/index.js`), **not** the TypeScript source — so a consumed ref must contain `dist/`. This repo keeps `dist/` **out of `main`** (`.gitignore`d) and builds it at release time, committing it **only onto the release tag**. Consequences:
