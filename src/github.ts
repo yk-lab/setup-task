@@ -122,7 +122,11 @@ export async function assertRedirectTrusted(url: string, token?: string): Promis
  * body being parsed as valid (which would surface as a confusing downstream
  * failure, e.g. "checksum not found").
  */
-function guardContentType(resp: Response, url: string, isExpected: (contentType: string) => boolean): void {
+function guardContentType(
+  resp: Response,
+  url: string,
+  isExpected: (contentType: string) => boolean,
+): void {
   const contentType = resp.headers.get('content-type') ?? '';
   if (!isExpected(contentType)) {
     throw new Error(

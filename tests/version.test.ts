@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isExact, resolveFromCache, resolveVersion, type ReleaseApi } from '../src/version';
+import { isExact, type ReleaseApi, resolveFromCache, resolveVersion } from '../src/version';
 
 function fakeApi(latest: string, stable: string[]): ReleaseApi {
   return {

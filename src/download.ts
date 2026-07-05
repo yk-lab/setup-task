@@ -1,7 +1,7 @@
 import * as core from '@actions/core';
 import * as tc from '@actions/tool-cache';
 import { DEFAULT_RETRIES, DEFAULT_RETRY_BASE_MS } from './constants';
-import { PermanentError, errorMessage } from './errors';
+import { errorMessage, PermanentError } from './errors';
 import { assertRedirectTrusted } from './github';
 
 export interface RetryOptions {
@@ -10,8 +10,7 @@ export interface RetryOptions {
   name?: string;
 }
 
-const sleep = (ms: number): Promise<void> =>
-  new Promise((resolve) => setTimeout(resolve, ms));
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** A 404 from tool-cache surfaces as an HTTPError with httpStatusCode. */
 function isPermanent(err: unknown): boolean {

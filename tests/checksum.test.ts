@@ -3,9 +3,9 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
-import { fetch } from '../src/fetch';
 import { fetchChecksum, parseChecksums, sha256File, verifyChecksum } from '../src/checksum';
 import { PermanentError } from '../src/errors';
+import { fetch } from '../src/fetch';
 
 vi.mock('../src/fetch', () => ({ fetch: vi.fn() }));
 

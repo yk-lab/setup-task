@@ -42,7 +42,9 @@ describe('assertAllowedHost', () => {
   });
 
   it('throws PermanentError for an untrusted host', () => {
-    expect(() => assertAllowedHost('https://evil.example.com/x', 'request')).toThrow(PermanentError);
+    expect(() => assertAllowedHost('https://evil.example.com/x', 'request')).toThrow(
+      PermanentError,
+    );
   });
 
   it('throws PermanentError for a non-HTTPS URL', () => {

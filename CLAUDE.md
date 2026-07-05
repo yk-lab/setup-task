@@ -15,7 +15,8 @@ This repo uses **pnpm** (enforced via a `preinstall` guard; version pinned in
 pnpm install         # honours minimumReleaseAge cooldown (pnpm-workspace.yaml)
 pnpm run all         # typecheck + lint + test + build — run before committing
 pnpm run typecheck   # tsc --noEmit
-pnpm run lint        # eslint .   (lint:fix to autofix)
+pnpm run lint        # biome check . (lint + format + import checks; lint:fix to autofix)
+pnpm run format      # biome format --write .
 pnpm run test        # vitest run
 pnpm run test:watch  # vitest in watch mode
 pnpm run build       # ncc bundles src/main.ts -> dist/index.js

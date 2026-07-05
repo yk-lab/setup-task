@@ -2,12 +2,12 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as core from '@actions/core';
 import * as tc from '@actions/tool-cache';
-import { DEFAULT_RETRIES, DEFAULT_RETRY_BASE_MS, TOOL_NAME, releaseDownloadUrl } from './constants';
-import { downloadAsset, withRetry } from './download';
-import { parseRetryInput } from './inputs';
 import { fetchChecksum, verifyChecksum } from './checksum';
+import { DEFAULT_RETRIES, DEFAULT_RETRY_BASE_MS, releaseDownloadUrl, TOOL_NAME } from './constants';
+import { downloadAsset, withRetry } from './download';
 import { errorMessage } from './errors';
 import { createReleaseApi } from './github';
+import { parseRetryInput } from './inputs';
 import { extract } from './install';
 import { resolveAsset } from './platform';
 import { configureProxyFromEnv } from './proxy';
@@ -23,7 +23,11 @@ async function run(): Promise<void> {
   const checkLatest = core.getBooleanInput('check-latest');
   const skipChecksum = core.getBooleanInput('skip-checksum');
   const retries = parseRetryInput(core.getInput('retries'), DEFAULT_RETRIES, 'retries');
-  const retryBaseMs = parseRetryInput(core.getInput('retry-base-ms'), DEFAULT_RETRY_BASE_MS, 'retry-base-ms');
+  const retryBaseMs = parseRetryInput(
+    core.getInput('retry-base-ms'),
+    DEFAULT_RETRY_BASE_MS,
+    'retry-base-ms',
+  );
 
   // Summary state collected during the run and written at the end (NFR-5).
   const summary = {
@@ -43,6 +47,7 @@ async function run(): Promise<void> {
   if (!token) {
     core.warning(
       'No GitHub token available; API requests are unauthenticated and may hit ' +
+        // biome-ignore lint/suspicious/noTemplateCurlyInString: literal GitHub Actions expression shown to the user
         'rate limits. Pass "repo-token: ${{ github.token }}" to avoid this.',
     );
   }
@@ -55,9 +60,15 @@ async function run(): Promise<void> {
   //    prefer a satisfying cached version so we need no network round-trip and
   //    stay resilient to GitHub outages/rate limits (FR-7 / NFR-3 / G1).
   const api = createReleaseApi(token || undefined);
-  let version = resolveFromCache(tc.findAllVersions(TOOL_NAME, asset.arch), versionSpec, checkLatest);
+  let version = resolveFromCache(
+    tc.findAllVersions(TOOL_NAME, asset.arch),
+    versionSpec,
+    checkLatest,
+  );
   if (version) {
-    core.info(`Using cached go-task ${version} satisfying "${versionSpec}" (skipped network resolution).`);
+    core.info(
+      `Using cached go-task ${version} satisfying "${versionSpec}" (skipped network resolution).`,
+    );
   } else {
     version = await withRetry(() => resolveVersion(api, versionSpec, checkLatest), {
       retries,
@@ -92,11 +103,14 @@ async function run(): Promise<void> {
       summary.checksum = 'skipped';
       core.warning('Checksum verification skipped (skip-checksum=true).');
     } else {
-      const expected = await withRetry(() => fetchChecksum(tag, asset.assetName, token || undefined), {
-        retries,
-        baseMs: retryBaseMs,
-        name: 'fetch checksums',
-      });
+      const expected = await withRetry(
+        () => fetchChecksum(tag, asset.assetName, token || undefined),
+        {
+          retries,
+          baseMs: retryBaseMs,
+          name: 'fetch checksums',
+        },
+      );
       if (!expected) {
         throw new Error(
           `Checksum for ${asset.assetName} not found in the release checksums file. ` +
@@ -137,7 +151,10 @@ async function run(): Promise<void> {
     await core.summary
       .addHeading('Setup Task')
       .addTable([
-        [{ data: 'Item', header: true }, { data: 'Value', header: true }],
+        [
+          { data: 'Item', header: true },
+          { data: 'Value', header: true },
+        ],
         ['Version', summary.version],
         ['Asset', summary.asset],
         ['Source', summary.source],

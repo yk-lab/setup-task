@@ -50,7 +50,6 @@
 |---|---|---|---|---|
 | [#39](https://github.com/yk-lab/setup-task/issues/39) | `[enhancement]` ジョブサマリに導入結果を出力（NFR-5） | `P3: low` | `enhancement` |
 | [#44](https://github.com/yk-lab/setup-task/issues/44) | `[enhancement]` フォールバックソースをサポート（FR-11） | `P3: low` | `enhancement` |
-| [#45](https://github.com/yk-lab/setup-task/issues/45) | `[chore]` Biome 導入を評価 | `P3: low` | `chore` |
 
 ### 未 Issue 化
 
@@ -81,3 +80,4 @@ v1.0.0 実装中に作成・解決済みの Issue（参考）。
 | [#56](https://github.com/yk-lab/setup-task/issues/56) | `[security]` 取得ボディにサイズ上限/タイムアウトを設ける | #61 |
 | [#41](https://github.com/yk-lab/setup-task/issues/41) | `[test]` platform.test.ts を §9 全 os/arch 組合せに拡張 | #62 |
 | [#23](https://github.com/yk-lab/setup-task/issues/23) | `[ci]` ワークフロー静的解析（actionlint / zizmor）を CI に追加 | #68 |
+| [#45](https://github.com/yk-lab/setup-task/issues/45) | `[chore]` Biome 導入を評価 → 一元化採用 | #70 |
