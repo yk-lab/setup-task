@@ -22,4 +22,4 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: crate-ci/typos@b1a1ef3893ff35ade0cfa71523852a49bfd05d19 # v1.31.1
+      - uses: crate-ci/typos@37bb98842b0d8c4ffebdb75301a13db0267cef89 # v1.47.2
