@@ -81,3 +81,4 @@ v1.0.0 実装中に作成・解決済みの Issue（参考）。
 | [#23](https://github.com/yk-lab/setup-task/issues/23) | `[ci]` ワークフロー静的解析（actionlint / zizmor）を CI に追加 | #68 |
 | [#45](https://github.com/yk-lab/setup-task/issues/45) | `[chore]` Biome 導入を評価 → 一元化採用 | #70 |
 | [#38](https://github.com/yk-lab/setup-task/issues/38) | `[docs]` README に arduino/setup-task からの移行ガイドを追加 | #72 |
+| [#73](https://github.com/yk-lab/setup-task/issues/73) | `[docs]` セキュア路線へポジショニング見直し（arduino v3 を受けて） | #72 |

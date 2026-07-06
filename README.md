@@ -5,18 +5,16 @@
 [![codecov](https://codecov.io/gh/yk-lab/setup-task/branch/main/graph/badge.svg)](https://codecov.io/gh/yk-lab/setup-task)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 
-A GitHub Action that installs the [Task](https://github.com/go-task/task) (go-task) binary and puts it on `PATH`.
+A secure, reliable GitHub Action that installs the [Task](https://github.com/go-task/task) (go-task) binary onto `PATH` — verified downloads, no unauthenticated rate limits.
 
-Built as a modern, reliable alternative to `arduino/setup-task`:
-
-- 🟢 **Node 24 runtime** — on the current action runtime, no deprecated Node 16/20 to chase
-- 🔐 **Authenticated by default** — uses `${{ github.token }}` so release lookups don't hit unauthenticated rate limits (the cause of intermittent "could not download" failures)
 - 🛡️ **Checksum-verified** — every download is checked against the release `task_checksums.txt` (SHA256)
 - 🚫 **Host-pinned** — downloads and their redirects are restricted to GitHub hosts; a redirect to any other host is refused, and the token is never forwarded off `github.com`
-- ♻️ **Cached** — uses the runner tool cache to avoid re-downloading
+- 🔐 **Authenticated by default** — uses `${{ github.token }}` so release lookups don't hit unauthenticated rate limits (the cause of intermittent "could not download" failures)
 - 🔁 **Resilient** — retries transient network failures with exponential backoff
+- ♻️ **Cached** — uses the runner tool cache to avoid re-downloading
 - 🌐 **Proxy-aware** — honours `HTTP_PROXY` / `HTTPS_PROXY` / `NO_PROXY` for installs behind a corporate proxy or on self-hosted runners
-- 🧩 **Drop-in** — `version` / `repo-token` inputs are compatible with `arduino/setup-task`
+- 🟢 **Node 24 runtime** — on the current action runtime, no deprecated Node 16/20 to chase
+- 🧩 **Drop-in for `arduino/setup-task`** — the `version` / `repo-token` inputs match, so migrating is a one-line change ([see below](#migrating-from-arduinosetup-task))
 
 ## Usage
 
