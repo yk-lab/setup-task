@@ -9,7 +9,7 @@ A GitHub Action that installs the [Task](https://github.com/go-task/task) (go-ta
 
 Built as a modern, reliable alternative to `arduino/setup-task`:
 
-- 🟢 **Node 24 runtime** — not affected by the Node 20 action-runtime deprecation
+- 🟢 **Node 24 runtime** — on the current action runtime, no deprecated Node 16/20 to chase
 - 🔐 **Authenticated by default** — uses `${{ github.token }}` so release lookups don't hit unauthenticated rate limits (the cause of intermittent "could not download" failures)
 - 🛡️ **Checksum-verified** — every download is checked against the release `task_checksums.txt` (SHA256)
 - 🚫 **Host-pinned** — downloads and their redirects are restricted to GitHub hosts; a redirect to any other host is refused, and the token is never forwarded off `github.com`
@@ -29,15 +29,26 @@ Built as a modern, reliable alternative to `arduino/setup-task`:
 
 ### Migrating from `arduino/setup-task`
 
-Replace the `uses:` line — the common inputs are compatible:
+`setup-task` is a drop-in replacement — the `version` and `repo-token` inputs match `arduino/setup-task`, so migrating is a one-line change:
 
 ```diff
-- - uses: arduino/setup-task@v2
+- - uses: arduino/setup-task@v3
 + - uses: yk-lab/setup-task@v1
     with:
       version: 3.x
       repo-token: ${{ secrets.GITHUB_TOKEN }}
 ```
+
+**Double-check the default `version`.** `arduino/setup-task` defaults to `3.x`; this action defaults to `latest`. If your workflow omitted `version` and relied on that default, set it explicitly so you don't silently jump to a new major.
+
+**What you gain by switching** — none of these ship with `arduino/setup-task`, including its v3.0.0:
+
+- Authenticated release lookups by default — no unauthenticated rate-limit failures
+- SHA256 checksum verification of every download
+- Host-pinned downloads and redirects (the token never leaves `github.com`)
+- Retry-with-backoff on transient failures, plus proxy support
+
+Everything else is unchanged: the extra inputs (`architecture`, `check-latest`, `skip-checksum`, `retries`, `retry-base-ms`) are all optional, and both actions run on the Node 24 runtime.
 
 ## Inputs
 

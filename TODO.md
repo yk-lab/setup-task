@@ -38,7 +38,6 @@
 | # | 概要 | 優先度 | ラベル | 備考 |
 |---|---|---|---|---|
 | [#37](https://github.com/yk-lab/setup-task/issues/37) | `[release]` リリース自動化 + `v1` ムービングタグ + Marketplace 公開 | `P1: high` | `release` | **release-please + `JasonEtco/build-and-tag-action`（パターン A）** で実装。詳細は Issue 内コメント参照 |
-| [#38](https://github.com/yk-lab/setup-task/issues/38) | `[docs]` README に arduino/setup-task からの移行ガイドを追加 | `P2: medium` | `documentation` | §11 DoD「代表ワークフローが通ることを保証」に対応 |
 
 ---
 
@@ -81,3 +80,4 @@ v1.0.0 実装中に作成・解決済みの Issue（参考）。
 | [#41](https://github.com/yk-lab/setup-task/issues/41) | `[test]` platform.test.ts を §9 全 os/arch 組合せに拡張 | #62 |
 | [#23](https://github.com/yk-lab/setup-task/issues/23) | `[ci]` ワークフロー静的解析（actionlint / zizmor）を CI に追加 | #68 |
 | [#45](https://github.com/yk-lab/setup-task/issues/45) | `[chore]` Biome 導入を評価 → 一元化採用 | #70 |
+| [#38](https://github.com/yk-lab/setup-task/issues/38) | `[docs]` README に arduino/setup-task からの移行ガイドを追加 | #72 |
