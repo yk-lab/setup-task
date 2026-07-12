@@ -81,9 +81,17 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ inputs.version }}
         run: |
-          gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
-            -f "ref=refs/tags/$VERSION" \
-            -f "sha=$GITHUB_SHA"
+          # Idempotent: a prior failed run may have left this tag behind, and it is
+          # protected against deletion, so it can't be cleaned up without admin
+          # bypass. Re-running the workflow is the recovery path — the bake step
+          # below fast-forwards the existing tag onto the freshly built commit.
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$VERSION" >/dev/null 2>&1; then
+            echo "Tag $VERSION already exists; the bake step will fast-forward it."
+          else
+            gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
+              -f "ref=refs/tags/$VERSION" \
+              -f "sha=$GITHUB_SHA"
+          fi
 
       # Commit action.yml + dist/index.js onto the tag and force-update the
       # moving v<major> / v<major>.<minor> tags to match (those are outside the
@@ -96,11 +104,17 @@ jobs:
           tag_name: ${{ inputs.version }}
 
       # Publish the Release last, on the now-baked tag, with auto-generated notes.
+      # Idempotent so a rerun after a publish hiccup doesn't fail on an existing one.
       - name: Publish the GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ inputs.version }}
-        run: gh release create "$VERSION" --title "$VERSION" --generate-notes --verify-tag
+        run: |
+          if gh release view "$VERSION" >/dev/null 2>&1; then
+            echo "Release $VERSION already exists; leaving it in place."
+          else
+            gh release create "$VERSION" --title "$VERSION" --generate-notes --verify-tag
+          fi
 
       - name: Job summary
         env:

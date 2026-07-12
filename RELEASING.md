@@ -26,9 +26,11 @@ moving tags — so consumers can pin `@v1`.
      packaged (`action.yml` + a parseable `dist/index.js`).
 4. Confirm the run's job summary and that `uses: yk-lab/setup-task@v1` resolves.
 
-> The version tag is protected against deletion, so cleaning up a failed release
-> (e.g. the bake step errored, leaving a `vX.Y.Z` tag but no published release)
-> takes an admin to delete the tag before retrying.
+> If a run fails partway (e.g. the bake step errored, leaving a `vX.Y.Z` tag but
+> no published release), just **re-run the workflow with the same version** — tag
+> creation and release publishing are idempotent, so the bake fast-forwards the
+> leftover tag onto the fresh build and heals the half-finished state. The tag is
+> protected against deletion, so re-running (not deleting) is the recovery path.
 
 `dist/` is **never committed to `main`** (it is `.gitignore`d); it exists only
 on the tags the workflow writes. That is why the action must be consumed via a
