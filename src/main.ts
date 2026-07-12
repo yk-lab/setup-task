@@ -149,7 +149,7 @@ async function run(): Promise<void> {
   // Best-effort: a summary write failure must not fail the action.
   try {
     await core.summary
-      .addHeading('Setup Task')
+      .addHeading('Setup go-task')
       .addTable([
         [
           { data: 'Item', header: true },
