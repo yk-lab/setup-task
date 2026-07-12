@@ -1,4 +1,4 @@
-name: "Setup Task"
+name: "Setup go-task"
 description: "Securely install the Task (go-task) binary onto PATH — authenticated, SHA256-checksum-verified downloads, cached."
 author: "yk-lab"
 
