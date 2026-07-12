@@ -88,7 +88,7 @@ pnpm install
 pnpm run all       # typecheck + lint + test + build (bundles dist/)
 ```
 
-`dist/` is **not** committed: it is built at release time and committed only onto the release tag (consume the action via a tag like `@v1`, not `@main`). CI runs `pnpm run build` to confirm the bundle compiles.
+`dist/` is **not** committed: it is built at release time and committed only onto the release tag (consume the action via a tag like `@v1`, not `@main`). CI runs `pnpm run build` to confirm the bundle compiles. See [`RELEASING.md`](./RELEASING.md) for how releases are cut.
 
 See [`企画書.md`](./企画書.md) and [`要求仕様書.md`](./要求仕様書.md) for the design rationale and requirements.
 

@@ -35,7 +35,7 @@ GitHub Actions runs the bundled `dist/index.js` directly (see `action.yml` → `
 
 - **Consume via a tag** (`uses: yk-lab/setup-task@v1`), never `@main` — `main` has no `dist/`.
 - Source PRs carry no `dist/` churn; there is no freshness check. CI still runs `pnpm run build` to confirm the bundle compiles, and `self-test.yml` builds before `uses: ./`.
-- Releasing is what produces a usable `dist/` (see release automation in `.github/workflows`). Always rebuild with the pinned pnpm version (`packageManager` field) so the tagged bundle is reproducible.
+- Releasing is what produces a usable `dist/`: the manual **Release** workflow (`.github/workflows/release.yml`, `workflow_dispatch`) builds the bundle and bakes it onto the tag via `JasonEtco/build-and-tag-action`, then moves the `v1` / `v1.0` tags — see [`RELEASING.md`](RELEASING.md). Always rebuild with the pinned pnpm version (`packageManager` field) so the tagged bundle is reproducible.
 
 ## Architecture
 
