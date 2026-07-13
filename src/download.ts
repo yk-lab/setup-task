@@ -22,7 +22,7 @@ function isPermanent(err: unknown): boolean {
 }
 
 /**
- * Run an async operation with exponential backoff (FR-4). Permanent errors
+ * Run an async operation with exponential backoff. Permanent errors
  * (404 / checksum mismatch) bail out immediately without retrying.
  */
 export async function withRetry<T>(fn: () => Promise<T>, opts: RetryOptions = {}): Promise<T> {
@@ -52,12 +52,11 @@ export async function withRetry<T>(fn: () => Promise<T>, opts: RetryOptions = {}
 
 /**
  * Download a release asset to a temp file. When a token is available the
- * request is authenticated, which avoids unauthenticated rate-limit failures
- * (FR-3).
+ * request is authenticated, which avoids unauthenticated rate-limit failures.
  */
 export async function downloadAsset(url: string, token?: string): Promise<string> {
   // Vet the redirect chain's hosts before tool-cache (which follows redirects
-  // opaquely) fetches the body (NFR-1). Only an untrusted host (PermanentError)
+  // opaquely) fetches the body. Only an untrusted host (PermanentError)
   // is fatal; a preflight that simply couldn't complete falls through to the
   // checksum-verified tool-cache download rather than blocking it.
   try {
@@ -78,7 +77,7 @@ export async function downloadAsset(url: string, token?: string): Promise<string
   }
   // tool-cache's downloader exposes no AbortSignal/size limit, and we keep it for
   // its proxy support (#54); the binary transfer is bounded only by the job
-  // timeout (hangs) and runner disk (size), and SHA256 verification (FR-5)
+  // timeout (hangs) and runner disk (size), and SHA256 verification
   // rejects a tampered/oversized payload before it is cached.
   const auth = token ? `Bearer ${token}` : undefined;
   return tc.downloadTool(url, undefined, auth);
