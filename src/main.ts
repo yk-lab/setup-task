@@ -25,7 +25,7 @@ interface RunSummary {
   phase: string;
 }
 
-async function run(): Promise<void> {
+export async function run(): Promise<void> {
   // Summary state collected during the run and written at the end (NFR-5).
   // Declared first so a failure anywhere below — including proxy/input setup —
   // is captured by the failure summary in the catch.
@@ -199,7 +199,7 @@ async function run(): Promise<void> {
 
 // Best-effort failure summary: name the phase that broke and the state gathered
 // so far, so a failed run is diagnosable from the job summary, not just the log.
-async function writeFailureSummary(summary: RunSummary, err: unknown): Promise<void> {
+export async function writeFailureSummary(summary: RunSummary, err: unknown): Promise<void> {
   try {
     await core.summary
       .addHeading('Install Task — failed')
@@ -220,7 +220,3 @@ async function writeFailureSummary(summary: RunSummary, err: unknown): Promise<v
     core.warning(`Failed to write failure summary: ${errorMessage(summaryErr)}`);
   }
 }
-
-run().catch((err: unknown) => {
-  core.setFailed(errorMessage(err));
-});
