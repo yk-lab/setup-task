@@ -31,8 +31,8 @@ importers:
         specifier: ^7.5.8
         version: 7.7.1
       '@vercel/ncc':
-        specifier: ^0.44.0
-        version: 0.44.0
+        specifier: ^0.44.1
+        version: 0.44.1
       '@vitest/coverage-v8':
         specifier: ^4.1.10
         version: 4.1.10(vitest@4.1.10)
@@ -288,8 +288,8 @@ packages:
   '@types/semver@7.7.1':
     resolution: {integrity: sha512-FmgJfu+MOcQ370SD0ev7EI8TlCAfKYU+B4m5T3yXc1CiRN94g/SZPtsCkk506aUDtlMnFZvasDwHHUcZUEaYuA==}
 
-  '@vercel/ncc@0.44.0':
-    resolution: {integrity: sha512-pHyI+bZokSgIscTKFSmpNk5vZzmOrb9RW0Vu4SRyqUvkJ0kgg3PzaZLLDVTFXhbUiCqg0/Eu8L4fKtgViA92kg==}
+  '@vercel/ncc@0.44.1':
+    resolution: {integrity: sha512-cUjIE5P2YY1n+Kt9rFIazMMpGoPn1Fic04rOmTkElMkiDP5oszGfERMpo2shVkFKDL7rVppdM2pqJKC59shQWQ==}
     hasBin: true
 
   '@vitest/coverage-v8@4.1.10':
@@ -892,7 +892,7 @@ snapshots:
 
   '@types/semver@7.7.1': {}
 
-  '@vercel/ncc@0.44.0': {}
+  '@vercel/ncc@0.44.1': {}
 
   '@vitest/coverage-v8@4.1.10(vitest@4.1.10)':
     dependencies:
