@@ -18,7 +18,9 @@ to spring.
 Authenticate by default: use `repo-token` if provided, otherwise the ambient
 `GITHUB_TOKEN`, for both API calls and asset downloads. With no token available
 at all, continue but `warning` about the rate-limit risk. Treat a non-JSON/HTML
-response as a *transient* failure and retry it.
+response as a *transient* failure and retry it; permanent failures — HTTP 404
+(including tool-cache's) and checksum mismatches — fail immediately without
+consuming retries.
 
 ## Consequences
 

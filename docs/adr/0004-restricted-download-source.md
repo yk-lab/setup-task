@@ -16,8 +16,9 @@ Download only go-task's official GitHub releases. Do not accept arbitrary URLs,
 and do not shell out to `curl | sh`. Validate every redirect hop's host against
 an explicit allowlist — `github.com`, `api.github.com`,
 `release-assets.githubusercontent.com`, and `objects.githubusercontent.com`,
-with no wildcards; an untrusted host is a permanent failure. Because even these trusted
-hosts could be hijacked or hang, cap every response's size and time.
+with no wildcards; an untrusted host is a permanent failure. The action's own
+fetches (release API + checksums) additionally cap response size and time so a
+hijacked or hung host cannot exhaust memory or wedge the run.
 
 ## Consequences
 
@@ -27,3 +28,9 @@ hosts could be hijacked or hang, cap every response's size and time.
   suffix that also serves arbitrary user content.
 - No private mirrors / arbitrary sources. A future fallback source is tracked as
   an enhancement in the issue tracker.
+- The binary download itself runs through `@actions/tool-cache` (kept for proxy
+  support), which follows redirects opaquely with no per-hop host check or size
+  cap — so it is **preflighted** against the allowlist, bounded only by the job
+  timeout and runner disk, and backed by SHA256 verification
+  ([ADR 0003](0003-mandatory-checksum-verification.md)); the caps above do not
+  apply to that transfer.

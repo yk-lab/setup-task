@@ -56,9 +56,9 @@ export async function withRetry<T>(fn: () => Promise<T>, opts: RetryOptions = {}
  */
 export async function downloadAsset(url: string, token?: string): Promise<string> {
   // Vet the redirect chain's hosts before tool-cache (which follows redirects
-  // opaquely) fetches the body. Only an untrusted host (PermanentError)
-  // is fatal; a preflight that simply couldn't complete falls through to the
-  // checksum-verified tool-cache download rather than blocking it.
+  // opaquely) fetches the body. Only a PermanentError (untrusted host or
+  // non-HTTPS URL) is fatal; a preflight that simply couldn't complete falls
+  // through to the checksum-verified tool-cache download rather than blocking it.
   try {
     await assertRedirectTrusted(url, token);
   } catch (err) {

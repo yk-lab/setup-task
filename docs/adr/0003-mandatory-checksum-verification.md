@@ -23,3 +23,7 @@ fail.
 - Checksum mismatches are classified as permanent, distinct from transient
   network errors that retry.
 - `skip-checksum` exists as a documented, discouraged escape hatch.
+- Checksums come from the same release as the asset, so they defend against
+  corruption and in-transit tampering — not a compromised upstream that swaps
+  both files. Independent authenticity (signing / provenance) is tracked
+  separately (SLSA; see the issue tracker).

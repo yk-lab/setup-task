@@ -22,3 +22,6 @@ are additive and optional.
   unchanged.
 - The two compatible inputs are effectively a frozen contract — renaming them is
   a breaking change for migrators.
+- The default `version` is `latest` here, so a workflow that omits `version` may
+  install a different release than `arduino/setup-task` did — pin an explicit
+  `version` for a behavior-preserving migration.

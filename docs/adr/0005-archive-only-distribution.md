@@ -18,6 +18,6 @@ scope.
 ## Consequences
 
 - One extraction path across all supported platforms; no privilege escalation.
-- The supported OS/arch matrix mirrors go-task's published archive assets
-  (encoded as `SUPPORTED` in `platform.ts`); adding a target means updating that
-  matrix.
+- The supported OS/arch matrix mirrors go-task's published archive assets; adding
+  a target means updating the `OS_MAP` / `ARCH_MAP` (Node → go-task token maps)
+  and the `SUPPORTED` matrix in `platform.ts`.
