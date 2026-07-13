@@ -19,7 +19,7 @@ pnpm run lint        # biome check . (lint + format + import checks; lint:fix to
 pnpm run format      # biome format --write .
 pnpm run test        # vitest run
 pnpm run test:watch  # vitest in watch mode
-pnpm run build       # ncc bundles src/main.ts -> dist/index.js
+pnpm run build       # ncc bundles src/index.ts -> dist/index.js
 pnpm exec vitest run tests/version.test.ts        # run a single test file
 pnpm exec vitest run -t "resolves a semver range" # run tests matching a name
 ```
@@ -38,6 +38,8 @@ GitHub Actions runs the bundled `dist/index.js` directly (see `action.yml` → `
 - Releasing is what produces a usable `dist/`: the manual **Release** workflow (`.github/workflows/release.yml`, `workflow_dispatch`) builds the bundle and bakes it onto the tag via `JasonEtco/build-and-tag-action`, then moves the `v1` / `v1.0` tags — see [`RELEASING.md`](RELEASING.md). Always rebuild with the pinned pnpm version (`packageManager` field) so the tagged bundle is reproducible.
 
 ## Architecture
+
+`src/index.ts` is the ncc **entry point** — a thin wrapper that calls `run()` and routes a rejection to `core.setFailed`. It is deliberately separate from `src/main.ts` so `run()`/`writeFailureSummary` can be imported by unit tests without executing the pipeline on import (`tests/main.test.ts` relies on this).
 
 `src/main.ts` is the orchestrator. Its `run()` executes a fixed 7-step pipeline, and the rest of `src/` is single-responsibility modules it calls:
 
