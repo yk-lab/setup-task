@@ -7,7 +7,8 @@
 
 `arduino/setup-task`, the de-facto action for installing go-task, declares
 `using: "node20"`. GitHub forces the Node 24 runtime from 2026-06-16 and removes
-Node 20 from runners on 2026-09-16. A thin JS action would likely survive the
+Node 20 from runners in fall 2026 ([GitHub changelog](https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/)).
+A thin JS action would likely survive the
 forced upgrade, but pairing an unmaintained action (no release since 2024-02)
 with a runtime on its way out is a standing liability.
 

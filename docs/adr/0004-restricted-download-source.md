@@ -14,8 +14,9 @@ release we intend to install".
 
 Download only go-task's official GitHub releases. Do not accept arbitrary URLs,
 and do not shell out to `curl | sh`. Validate every redirect hop's host against
-an explicit allowlist (`github.com`, `api.github.com`, and the release-asset
-CDNs); an untrusted host is a permanent failure. Because even these trusted
+an explicit allowlist — `github.com`, `api.github.com`,
+`release-assets.githubusercontent.com`, and `objects.githubusercontent.com`,
+with no wildcards; an untrusted host is a permanent failure. Because even these trusted
 hosts could be hijacked or hang, cap every response's size and time.
 
 ## Consequences

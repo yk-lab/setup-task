@@ -78,7 +78,7 @@ export async function downloadAsset(url: string, token?: string): Promise<string
   // tool-cache's downloader exposes no AbortSignal/size limit, and we keep it for
   // its proxy support (#54); the binary transfer is bounded only by the job
   // timeout (hangs) and runner disk (size), and SHA256 verification
-  // rejects a tampered/oversized payload before it is cached.
+  // rejects a tampered payload before it is cached.
   const auth = token ? `Bearer ${token}` : undefined;
   return tc.downloadTool(url, undefined, auth);
 }
