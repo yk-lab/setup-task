@@ -31,7 +31,7 @@ const ARCH_MAP: Record<string, string> = {
 
 /**
  * Supported arch per OS, mirroring the assets published by go-task
- * (see 要求仕様書 §9 / verified against v3.51.1 releases).
+ * (verified against the v3.51.1 releases).
  */
 const SUPPORTED: Record<string, ReadonlySet<string>> = {
   linux: new Set(['386', 'amd64', 'arm', 'arm64', 'riscv64']),
@@ -42,7 +42,7 @@ const SUPPORTED: Record<string, ReadonlySet<string>> = {
 
 /**
  * Resolve the release asset for the current (or overridden) platform.
- * Throws on unsupported OS / arch combinations (FR-2).
+ * Throws on unsupported OS / arch combinations.
  */
 export function resolveAsset(
   platform: string = process.platform,

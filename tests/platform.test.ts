@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { resolveAsset } from '../src/platform';
 
-// 要求仕様書 §9 platform matrix — the source of truth, kept independent of
-// src/platform.ts's `SUPPORTED` so this test actually pins §9 (a drift in either
-// fails here). Keys are go-task tokens; values map back to Node's process values.
+// Platform matrix — an independent source of truth, kept separate from
+// src/platform.ts's `SUPPORTED` so this test actually pins the supported matrix
+// (a drift in either fails here). Keys are go-task tokens; values map back to
+// Node's process values.
 const NODE_PLATFORM: Record<string, string> = {
   linux: 'linux',
   darwin: 'darwin',
@@ -33,7 +34,7 @@ const unsupported = Object.entries(MATRIX).flatMap(([os, arches]) =>
   ALL_ARCHES.filter((arch) => !arches.includes(arch)).map((arch) => ({ os, arch })),
 );
 
-describe('resolveAsset — §9 platform matrix', () => {
+describe('resolveAsset — platform matrix', () => {
   it.each(supported)('maps $os/$arch to the published asset', ({ os, arch }) => {
     const ext = os === 'windows' ? 'zip' : 'tar.gz';
     expect(resolveAsset(NODE_PLATFORM[os], NODE_ARCH[arch])).toMatchObject({

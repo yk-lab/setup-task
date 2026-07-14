@@ -42,7 +42,7 @@ function withoutAuth(headers: Record<string, string>): Record<string, string> {
 
 /**
  * fetch() that follows redirects manually so every hop's host is validated
- * against the allowlist (NFR-1), and drops Authorization on a cross-origin
+ * against the allowlist, and drops Authorization on a cross-origin
  * redirect so the repo-token never leaks off github.com.
  */
 export async function secureFetch(url: string, headers: Record<string, string>): Promise<Response> {
@@ -50,7 +50,7 @@ export async function secureFetch(url: string, headers: Record<string, string>):
   let currentHeaders = headers;
   // One deadline for the whole operation — redirects plus the final body read
   // (the returned response's body stays bound to this signal). A hang aborts
-  // and surfaces as a transient error withRetry can retry (NFR-1).
+  // and surfaces as a transient error withRetry can retry.
   const signal = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
 
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
@@ -107,7 +107,7 @@ function assetHeaders(token?: string): Record<string, string> {
 }
 
 /**
- * Vet a download URL's full redirect chain against the host allowlist (NFR-1)
+ * Vet a download URL's full redirect chain against the host allowlist
  * without downloading the body. Throws PermanentError on an untrusted host.
  */
 export async function assertRedirectTrusted(url: string, token?: string): Promise<void> {
@@ -117,7 +117,7 @@ export async function assertRedirectTrusted(url: string, token?: string): Promis
 
 /**
  * Reject a response whose body isn't the expected type — typically the HTML
- * rate-limit/error page ("Unicorn") that unauthenticated requests get (FR-3).
+ * rate-limit/error page ("Unicorn") that unauthenticated requests get.
  * Throwing keeps it a transient failure so withRetry() retries, instead of the
  * body being parsed as valid (which would surface as a confusing downstream
  * failure, e.g. "checksum not found").
@@ -137,7 +137,7 @@ function guardContentType(
 }
 
 /**
- * Read a response body as UTF-8 text, refusing bodies over `maxBytes` (NFR-1):
+ * Read a response body as UTF-8 text, refusing bodies over `maxBytes`:
  * `resp.text()` buffers an unbounded stream, so a hijacked trusted host could
  * exhaust memory. Count bytes as they arrive and bail (PermanentError — retrying
  * just re-streams the same oversized body).
@@ -168,7 +168,7 @@ export async function readCappedText(
   return Buffer.concat(chunks).toString('utf-8');
 }
 
-/** Fetch and parse JSON, requiring a JSON content-type (FR-3). */
+/** Fetch and parse JSON, requiring a JSON content-type. */
 export async function fetchJson<T>(url: string, token?: string): Promise<T> {
   const resp = await fetchOk(url, token);
   guardContentType(resp, url, (contentType) => contentType.includes('json'));
@@ -176,7 +176,7 @@ export async function fetchJson<T>(url: string, token?: string): Promise<T> {
   return JSON.parse((await readCappedText(resp, url)).replace(/^\uFEFF/, '')) as T;
 }
 
-/** Fetch a text body (the checksums file), rejecting HTML error pages (FR-3). */
+/** Fetch a text body (the checksums file), rejecting HTML error pages. */
 export async function fetchText(url: string, token?: string): Promise<string> {
   const resp = await fetchOk(url, token);
   guardContentType(resp, url, (contentType) => !contentType.includes('html'));

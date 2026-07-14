@@ -18,7 +18,7 @@ export function isExact(input: string): boolean {
 }
 
 /**
- * Resolve a user-supplied version spec to a concrete version (FR-1).
+ * Resolve a user-supplied version spec to a concrete version.
  *
  * - "latest" / "" / "*"     -> newest stable release
  * - exact ("3.51.1"/"v3..") -> returned as-is (unless checkLatest)
@@ -50,7 +50,7 @@ export async function resolveVersion(
 
 /**
  * Pick a cached version that satisfies the spec so a range install can skip the
- * network round-trip (FR-7 / NFR-3 / honours `check-latest=false`). Returns
+ * network round-trip (honours `check-latest=false`). Returns
  * undefined when the cache cannot answer and a network resolution is needed:
  *
  * - checkLatest=true      -> always re-resolve from the network.

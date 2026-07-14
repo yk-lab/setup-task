@@ -14,7 +14,7 @@ import { configureProxyFromEnv } from './proxy';
 import { resolveFromCache, resolveVersion } from './version';
 
 // State collected as the pipeline runs. `phase` names the current step so a
-// failure can be reported in the job summary (NFR-5), not just the log.
+// failure can be reported in the job summary, not just the log.
 interface RunSummary {
   version: string;
   asset: string;
@@ -26,7 +26,7 @@ interface RunSummary {
 }
 
 export async function run(): Promise<void> {
-  // Summary state collected during the run and written at the end (NFR-5).
+  // Summary state collected during the run and written at the end.
   // Declared first so a failure anywhere below — including proxy/input setup —
   // is captured by the failure summary in the catch.
   const summary: RunSummary = {
@@ -55,7 +55,7 @@ export async function run(): Promise<void> {
       'retry-base-ms',
     );
 
-    // Mask the token so it can never leak into logs/summaries (NFR-1).
+    // Mask the token so it can never leak into logs/summaries.
     if (token) {
       core.setSecret(token);
     }
@@ -74,9 +74,9 @@ export async function run(): Promise<void> {
     core.debug(`Target asset: ${asset.assetName}`);
 
     summary.phase = 'resolving version';
-    // 1. Resolve the concrete version (FR-1). For a range with check-latest=false,
+    // 1. Resolve the concrete version. For a range with check-latest=false,
     //    prefer a satisfying cached version so we need no network round-trip and
-    //    stay resilient to GitHub outages/rate limits (FR-7 / NFR-3 / G1).
+    //    stay resilient to GitHub outages/rate limits.
     const api = createReleaseApi(token || undefined);
     let version = resolveFromCache(
       tc.findAllVersions(TOOL_NAME, asset.arch),
@@ -98,7 +98,7 @@ export async function run(): Promise<void> {
     summary.version = version;
 
     summary.phase = 'checking tool cache';
-    // 2. Tool-cache lookup (FR-7).
+    // 2. Tool-cache lookup.
     let toolDir = tc.find(TOOL_NAME, version, asset.arch);
     const cacheHit = Boolean(toolDir);
     summary.cache = cacheHit ? 'hit' : 'miss';
@@ -110,7 +110,7 @@ export async function run(): Promise<void> {
       const url = releaseDownloadUrl(tag, asset.assetName);
 
       summary.phase = 'downloading release asset';
-      // 3. Download (authenticated + retry, FR-3/FR-4).
+      // 3. Download (authenticated + retry).
       core.info(`Downloading ${url}`);
       const archivePath = await withRetry(() => downloadAsset(url, token || undefined), {
         retries,
@@ -119,7 +119,7 @@ export async function run(): Promise<void> {
       });
 
       summary.phase = 'verifying checksum';
-      // 4. Checksum verification (FR-5).
+      // 4. Checksum verification.
       if (skipChecksum) {
         summary.checksum = 'skipped';
         core.warning('Checksum verification skipped (skip-checksum=true).');
@@ -144,13 +144,13 @@ export async function run(): Promise<void> {
       }
 
       summary.phase = 'extracting & caching';
-      // 5. Extract + cache (FR-6/FR-7).
+      // 5. Extract + cache.
       const extractedDir = await extract(archivePath, asset.ext);
       toolDir = await tc.cacheDir(extractedDir, TOOL_NAME, version, asset.arch);
     }
 
     summary.phase = 'installing onto PATH';
-    // 6. Ensure executable + expose on PATH (FR-6/FR-8).
+    // 6. Ensure executable + expose on PATH.
     const binPath = path.join(toolDir, asset.binaryName);
     summary.path = binPath;
     if (process.platform !== 'win32') {
@@ -162,13 +162,13 @@ export async function run(): Promise<void> {
     }
     core.addPath(toolDir);
 
-    // 7. Outputs (FR-9).
+    // 7. Outputs.
     core.setOutput('version', version);
     core.setOutput('task-path', binPath);
     core.setOutput('cache-hit', String(cacheHit));
     core.info(`task ${version} is ready at ${binPath}`);
 
-    // Emit a job summary after the fixed pipeline completes (NFR-5).
+    // Emit a job summary after the fixed pipeline completes.
     // Best-effort: a summary write failure must not fail the action.
     try {
       await core.summary

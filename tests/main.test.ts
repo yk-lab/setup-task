@@ -2,7 +2,7 @@ import * as core from '@actions/core';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { writeFailureSummary } from '../src/main';
 
-// The failure job summary (#78 / NFR-5) is only reachable when run() throws, a
+// The failure job summary (#78) is only reachable when run() throws, a
 // path the happy-path self-test never exercises. writeFailureSummary is pure
 // apart from the @actions/core summary builder, so mock that boundary and
 // assert what lands in the summary table. Importing ../src/main has no side

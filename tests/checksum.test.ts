@@ -58,9 +58,9 @@ describe('sha256File / verifyChecksum', () => {
 });
 
 // Integration of the full checksum path: fetchChecksum (fetch + parse) feeding
-// verifyChecksum (hash + compare). Proves a tampered archive is rejected
-// (FR-5, 要求仕様書 §10.3). The action hard-codes its download source (CON-2),
-// so the published checksums file is injected via a fetch stub.
+// verifyChecksum (hash + compare). Proves a tampered archive is rejected.
+// The action hard-codes its download source, so the published checksums file
+// is injected via a fetch stub.
 describe('fetchChecksum + verifyChecksum: tamper detection', () => {
   afterEach(() => {
     mockedFetch.mockReset();

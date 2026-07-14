@@ -76,7 +76,7 @@ describe('withRetry', () => {
   });
 });
 
-describe('downloadAsset (redirect preflight wiring, NFR-1)', () => {
+describe('downloadAsset (redirect preflight wiring)', () => {
   const ASSET_URL =
     'https://github.com/go-task/task/releases/download/v3.51.1/task_linux_amd64.tar.gz';
 

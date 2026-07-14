@@ -18,7 +18,7 @@ export function parseChecksums(text: string, assetName: string): string | undefi
   return undefined;
 }
 
-/** Download and parse the checksums file for one asset (FR-5). */
+/** Download and parse the checksums file for one asset. */
 export async function fetchChecksum(
   tag: string,
   assetName: string,
@@ -36,7 +36,7 @@ export function sha256File(filePath: string): string {
 }
 
 /**
- * Verify a file against an expected SHA256, throwing on mismatch (FR-5).
+ * Verify a file against an expected SHA256, throwing on mismatch.
  * A mismatch is a permanent, security-relevant failure (never retried).
  */
 export function verifyChecksum(filePath: string, expected: string): void {

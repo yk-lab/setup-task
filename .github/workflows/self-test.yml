@@ -86,7 +86,7 @@ jobs:
 
       # Re-run in the same job: the tool cache persists on this runner, so the
       # second install must be a cache hit (download + checksum skipped). This
-      # verifies the cache-hit path required by 要求仕様書 §10.2.
+      # verifies the cache-hit path.
       - name: Run setup-task again (expect cache hit)
         id: setup2
         uses: ./

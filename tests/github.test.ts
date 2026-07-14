@@ -14,7 +14,7 @@ vi.mock('../src/fetch', () => ({ fetch: vi.fn() }));
 
 const mockedFetch = vi.mocked(fetch);
 
-// Real allowlisted URLs (NFR-1): the host guard now rejects unknown hosts, so
+// Real allowlisted URLs: the host guard now rejects unknown hosts, so
 // tests must hit github.com / api.github.com / *.githubusercontent.com.
 const API_URL = 'https://api.github.com/repos/go-task/task/releases/latest';
 const CHECKSUMS_URL =
@@ -40,7 +40,7 @@ afterEach(() => {
   mockedFetch.mockReset();
 });
 
-describe('fetchJson (content-type guard, FR-3)', () => {
+describe('fetchJson (content-type guard)', () => {
   it('parses and returns the JSON body on a JSON response', async () => {
     stubFetch(JSON.stringify({ tag_name: 'v3.51.1' }), { contentType: 'application/json' });
     await expect(fetchJson(API_URL)).resolves.toEqual({ tag_name: 'v3.51.1' });
@@ -78,7 +78,7 @@ describe('fetchJson (content-type guard, FR-3)', () => {
   });
 });
 
-describe('fetchText (checksums fetch, FR-3)', () => {
+describe('fetchText (checksums fetch)', () => {
   it('returns the body for a plain-text checksums response', async () => {
     stubFetch(`${'a'.repeat(64)}  task_linux_amd64.tar.gz`, { contentType: 'text/plain' });
     await expect(fetchText(CHECKSUMS_URL)).resolves.toContain('task_linux_amd64');
@@ -99,15 +99,15 @@ describe('fetchText (checksums fetch, FR-3)', () => {
     await expect(fetchText(CHECKSUMS_URL)).rejects.toBeInstanceOf(PermanentError);
   });
 
-  it('rejects a redirect to an untrusted host with PermanentError (NFR-1)', async () => {
-    // The malicious-redirect injection required by NFR-1: github.com 302s to an
+  it('rejects a redirect to an untrusted host with PermanentError', async () => {
+    // The malicious-redirect injection this guards against: github.com 302s to an
     // attacker host; the checksums fetch must refuse it rather than follow.
     mockedFetch.mockImplementation(async () => redirectTo('https://evil.example.com/checksums'));
     await expect(fetchText(CHECKSUMS_URL)).rejects.toBeInstanceOf(PermanentError);
   });
 });
 
-describe('secureFetch (redirect host validation, NFR-1)', () => {
+describe('secureFetch (redirect host validation)', () => {
   it('follows a redirect to a trusted host and returns the final response', async () => {
     mockedFetch
       .mockResolvedValueOnce(redirectTo(ASSET_CDN_URL))
@@ -163,7 +163,7 @@ describe('secureFetch (redirect host validation, NFR-1)', () => {
     await expect(secureFetch(CHECKSUMS_URL, {})).rejects.toBeInstanceOf(PermanentError);
   });
 
-  it('assertRedirectTrusted rejects an untrusted binary redirect target (NFR-1)', async () => {
+  it('assertRedirectTrusted rejects an untrusted binary redirect target', async () => {
     // The binary preflight (download.ts) relies on this: github.com 302s to an
     // attacker host -> PermanentError, before tool-cache ever downloads.
     const ASSET_URL =
@@ -172,7 +172,7 @@ describe('secureFetch (redirect host validation, NFR-1)', () => {
     await expect(assertRedirectTrusted(ASSET_URL, 'tok')).rejects.toBeInstanceOf(PermanentError);
   });
 
-  it('passes an abort signal (per-request timeout) to fetch (NFR-1)', async () => {
+  it('passes an abort signal (per-request timeout) to fetch', async () => {
     mockedFetch.mockResolvedValueOnce(new Response('ok', { status: 200 }));
     await secureFetch(CHECKSUMS_URL, {});
     expect(mockedFetch).toHaveBeenCalledWith(
@@ -182,7 +182,7 @@ describe('secureFetch (redirect host validation, NFR-1)', () => {
   });
 });
 
-describe('readCappedText (response size cap, NFR-1)', () => {
+describe('readCappedText (response size cap)', () => {
   it('returns the body when under the cap', async () => {
     await expect(readCappedText(new Response('hello'), CHECKSUMS_URL, 100)).resolves.toBe('hello');
   });
