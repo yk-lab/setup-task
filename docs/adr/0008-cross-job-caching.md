@@ -19,24 +19,25 @@ Alternatives considered:
 
 Add a `cache` input (default `false`). When `cache: true`:
 
-1. **Before downloading**, try `actions/cache.restoreCache` with key `setup-task-<os>-<arch>-<resolved-version>` and no restore keys. A different version's entry can never be returned: `actions/cache` also scopes every entry by a hash of its paths, and the paths embed the version.
-2. **After restoring**, re-run `@actions/tool-cache.find()` so the `.complete` marker semantics stay authoritative.
-3. **After a fresh install** (tool-cache miss + cache miss), save the tool directory and its sibling `.complete` marker to `actions/cache` with the same key.
+1. **On a tool-cache miss**, fetch `task_checksums.txt` as usual, then try `actions/cache.restoreCache` for the **release archive** with key `setup-task-<os>-<arch>-<resolved-version>` and no restore keys. A different version's entry can never be returned: `actions/cache` also scopes every entry by a hash of its paths, and the path embeds the version.
+2. **A restored archive is untrusted.** It goes through the same SHA256 check against `task_checksums.txt` as a fresh download, then the normal extract + `tc.cacheDir()`. On a mismatch we warn and download instead.
+3. **After a fresh, verified download**, save the archive to `actions/cache` with the same key.
 4. **Save and restore are best-effort and never fail the job.** `actions/cache` handles its own failures (a parallel job reserving the key, a read-only token on fork PRs, network/5xx) by logging them at its own level (info / warning / error) and returning `-1` / `undefined`; it throws only `ValidationError`. The wrapper therefore branches on the return value and does not re-classify the library's errors.
+5. **`skip-checksum: true` disables the cross-job cache** (restore and save), since there is nothing to verify a restored archive against.
 
-Cache paths are:
+The cached path is `${RUNNER_TEMP}/setup-task-cache/<version>/<asset>`. It must be identical between save and restore (it is part of the entry's version hash), so the archive is copied there from tool-cache's randomly named download path.
 
-- `${RUNNER_TOOL_CACHE}/task/<version>/<arch>`
-- `${RUNNER_TOOL_CACHE}/task/<version>/<arch>.complete`
+### Why the archive, not the extracted tool dir
 
-The marker must be cached/restored alongside the directory, because `@actions/tool-cache.find()` checks for the sibling `.complete` file.
+Anything that can write this repository's cache — any workflow running on the default branch, including one compromised through `pull_request_target` or a script injection — can plant an entry under the predictable key. The restored `task` binary would then run in jobs with more privileges (secrets, `id-token`). Storing a hash next to the entry does not help, because the attacker writes both. The only trusted reference is the release's `task_checksums.txt`, and it hashes the archive, so the archive is what we cache.
 
 ## Consequences
 
 - **Across separate workflow runs, `cache: true` eliminates repeated downloads.** Within a single workflow run, the benefit is only realized if a cache entry already exists (from a previous run) or if jobs are explicitly serialized (e.g. via `needs`) so a prime job saves before others restore. Concurrently starting matrix jobs on a fresh cache all miss the restore and each download once; one job's save then benefits later runs.
 - **The GitHub API call that resolves `latest` / ranges is not removed.** That call is required to compute the cache key. Rate-limit exposure on `api.github.com` is unchanged.
-- **Release-asset and checksum-file downloads are reduced.** This improves reliability for the unauthenticated-asset path and lowers egress to GitHub's asset CDN, which is the failure mode this action was originally created to harden.
-- **Cache entries are trusted once saved.** We save only after the archive has passed SHA256 verification. When `skip-checksum: true` is used, the cross-job cache save is skipped so an unverified binary is never shared with other jobs. Restored entries are not re-verified — that would defeat the purpose by re-fetching the checksums file.
+- **Release-asset downloads are reduced; the checksums file is still fetched every time.** It is small, and it is what makes a restored archive trustworthy. This improves reliability for the unauthenticated-asset path and lowers egress to GitHub's asset CDN, which is the failure mode this action was originally created to harden.
+- **Cache entries are never trusted.** Only verified archives are saved, and every restore is verified again. A corrupt or tampered entry costs a warning and a download on each run until it is evicted (cache keys are immutable, so it cannot be overwritten).
+- **Each job still extracts the archive.** That is local and cheap compared to the download.
 - **Cache quota is consumed only when the feature is enabled.** Default workflows pay no extra cost.
 - **New dependency:** `@actions/cache` is added to the bundle.
 - **Self-hosted runners:** `cache: true` is redundant but harmless for versions already present in the runner tool cache; `tc.find()` will hit and skip both restore and save. A version not yet installed on that runner still goes through the cross-job restore/save path.

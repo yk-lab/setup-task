@@ -57,7 +57,7 @@ Everything else is unchanged: the extra inputs (`architecture`, `check-latest`, 
 | `architecture` | runner's arch | Override the CPU architecture (e.g. `amd64`, `arm64`). |
 | `check-latest` | `false` | For ranges, always re-resolve the newest matching release. |
 | `skip-checksum` | `false` | Disable SHA256 verification (not recommended). |
-| `cache` | `false` | Share the installed binary across jobs via actions/cache (`setup-task-<os>-<arch>-<resolved-version>-`). |
+| `cache` | `false` | Share the release archive across jobs via actions/cache. Restored archives are SHA256-verified; disabled when `skip-checksum` is `true`. |
 | `retries` | `3` | Max retries for transient network failures (version resolve, download, checksum fetch). |
 | `retry-base-ms` | `1000` | Initial backoff delay between retries, in milliseconds (doubles each attempt). |
 
@@ -81,7 +81,7 @@ steps:
   - run: task --version
 ```
 
-The cache key is `setup-task-<os>-<arch>-<resolved-version>`. Each resolved version is saved once when checksum verification is enabled; parallel jobs that attempt to save the same key skip the save without failing. This does **not** remove the GitHub API call used to resolve `latest`/ranges, but it eliminates the release-asset and checksum-file downloads on cache hits.
+The cache key is `setup-task-<os>-<arch>-<resolved-version>`. The release archive is cached, and a restored archive is verified against the release's `task_checksums.txt` exactly like a fresh download, so a tampered cache entry is rejected (with a warning) rather than executed. Parallel jobs that attempt to save the same key skip the save without failing. The cache is disabled when `skip-checksum: true`. This does **not** remove the GitHub API call used to resolve `latest`/ranges or the small checksums-file download, but it eliminates the release-asset download on cache hits.
 
 > **Note:** on the first workflow run with an empty cache, concurrently starting matrix jobs all restore before any peer saves, so each may download once. The cache benefits subsequent workflow runs, or jobs that are explicitly ordered (e.g. via `needs`) so a prime job saves first.
 

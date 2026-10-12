@@ -28,7 +28,7 @@ inputs:
     required: false
     default: "false"
   cache:
-    description: "Share the installed tool across jobs via actions/cache (keyed by OS + arch + resolved version)."
+    description: "Share the release archive across jobs via actions/cache. Restored archives are SHA256-verified; ignored when skip-checksum is true."
     required: false
     default: "false"
   retries:
