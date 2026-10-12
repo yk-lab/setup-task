@@ -217,11 +217,77 @@ jobs:
           # if fetch bypassed it (direct egress), this is absent and the job fails.
           grep -Eiq "api\.github\.com" /tmp/tinyproxy.log
 
+  # Verify that actions/cache restore works across separate jobs on ephemeral
+  # hosted runners (tool-cache is per-runner, so this is the only way to share
+  # a resolved version between matrix/concurrent jobs — #88).
+  cross-cache:
+    name: Prime cross-job cache
+    needs: changes
+    if: ${{ needs.changes.outputs.src == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
+      - name: Install with cache=true (seeds the cross-job cache)
+        uses: ./
+        with:
+          version: "3.51.1"
+          cache: "true"
+      - run: task --version
+
+  cross-cache-restore:
+    name: Restore from cross-job cache
+    needs: [changes, cross-cache]
+    if: ${{ needs.changes.outputs.src == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
+      - name: Restore on a fresh runner
+        id: restore
+        uses: ./
+        with:
+          version: "3.51.1"
+          cache: "true"
+      - name: Verify task works and was restored from the cross-job cache
+        shell: bash
+        run: |
+          installed="$(task --version)"
+          echo "task --version => ${installed}"
+          echo "cache-hit => ${CACHE_HIT}"
+          case "${installed}" in
+            *"3.51.1"*) echo "OK: versions match" ;;
+            *) echo "::error::version mismatch: '${installed}' does not contain '3.51.1'"; exit 1 ;;
+          esac
+          if [ "${CACHE_HIT}" != "true" ]; then
+            echo "::error::expected cache-hit=true from cross-job cache restore, got '${CACHE_HIT}'"; exit 1
+          fi
+        env:
+          CACHE_HIT: ${{ steps.restore.outputs.cache-hit }}
+
   # Bridge job that always succeeds so branch protection can require it even
   # when the real self-test jobs are skipped for markdown-only changes.
   self-test-gate:
     name: Self-test (gate)
-    needs: [changes, matrix, skip-checksum, proxy]
+    needs: [changes, matrix, skip-checksum, proxy, cross-cache, cross-cache-restore]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -231,12 +297,14 @@ jobs:
           matrix="${{ needs.matrix.result }}"
           skip="${{ needs.skip-checksum.result }}"
           proxy="${{ needs.proxy.result }}"
-          if [ "$changes" == "failure" ] || [ "$matrix" == "failure" ] || [ "$skip" == "failure" ] || [ "$proxy" == "failure" ]; then
-            echo "::error::Self-test failed (changes=$changes, matrix=$matrix, skip-checksum=$skip, proxy=$proxy)"
+          cross="${{ needs.cross-cache.result }}"
+          cross_restore="${{ needs.cross-cache-restore.result }}"
+          if [ "$changes" == "failure" ] || [ "$matrix" == "failure" ] || [ "$skip" == "failure" ] || [ "$proxy" == "failure" ] || [ "$cross" == "failure" ] || [ "$cross_restore" == "failure" ]; then
+            echo "::error::Self-test failed (changes=$changes, matrix=$matrix, skip-checksum=$skip, proxy=$proxy, cross-cache=$cross, cross-cache-restore=$cross_restore)"
             exit 1
           fi
-          if [ "$changes" == "cancelled" ] || [ "$matrix" == "cancelled" ] || [ "$skip" == "cancelled" ] || [ "$proxy" == "cancelled" ]; then
-            echo "::error::Self-test was cancelled (changes=$changes, matrix=$matrix, skip-checksum=$skip, proxy=$proxy)"
+          if [ "$changes" == "cancelled" ] || [ "$matrix" == "cancelled" ] || [ "$skip" == "cancelled" ] || [ "$proxy" == "cancelled" ] || [ "$cross" == "cancelled" ] || [ "$cross_restore" == "cancelled" ]; then
+            echo "::error::Self-test was cancelled (changes=$changes, matrix=$matrix, skip-checksum=$skip, proxy=$proxy, cross-cache=$cross, cross-cache-restore=$cross_restore)"
             exit 1
           fi
           echo "Self-test passed or skipped (markdown-only changes)."
