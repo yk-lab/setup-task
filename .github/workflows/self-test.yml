@@ -267,7 +267,12 @@ jobs:
         with:
           version: "3.51.1"
           cache: "true"
+      # The cross-job cache is best-effort: fork PRs get read-only cache tokens
+      # and cache-service outages can prevent the prime job from saving. In those
+      # cases the restore job still downloads the binary successfully; only assert
+      # a cross-job cache hit when the workflow context can actually write cache.
       - name: Verify task works and was restored from the cross-job cache
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         shell: bash
         run: |
           installed="$(task --version)"
