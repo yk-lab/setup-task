@@ -99,6 +99,12 @@ export async function saveCrossJobCache(version: string, arch: string): Promise<
     // ReserveCacheError (another job reserved the same key first) and
     // CacheWriteDeniedError (read-only cache token) are expected races/policies;
     // only genuine unexpected failures are warnings.
+    if (err instanceof cache.CacheWriteDeniedError) {
+      core.info(
+        `Task ${version} was not saved to the cross-job cache because cache writes are denied for this workflow (key: ${key}).`,
+      );
+      return;
+    }
     if (err instanceof cache.ReserveCacheError) {
       core.info(
         `Task ${version} was not saved to the cross-job cache because the key is already reserved (key: ${key}).`,
