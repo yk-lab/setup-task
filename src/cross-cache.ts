@@ -15,9 +15,7 @@ export function crossJobCacheKey(
   arch: string,
   platform: NodeJS.Platform = process.platform,
 ): string {
-  // Trailing "-": the cache service prefix-matches keys, so without a version
-  // terminator a request for 3.51.1 could restore a cached 3.51.10 archive.
-  return `setup-task-${platform}-${arch}-${version}-`;
+  return `setup-task-${platform}-${arch}-${version}`;
 }
 
 // Mirrors @actions/tool-cache's layout: <RUNNER_TOOL_CACHE>/<tool>/<clean
@@ -32,10 +30,13 @@ function toolCachePaths(version: string, arch: string): { dir: string; marker: s
   return { dir, marker: `${dir}.complete` };
 }
 
+// @actions/cache swallows every restore/save failure except ValidationError,
+// logs it at its own level, and returns undefined / -1. The catch blocks below
+// only see ValidationError and toolCachePaths() errors.
+
 /**
  * Restore a previously saved tool-cache entry for `version`. Returns true when
- * a cache entry was restored; the caller re-checks via tc.find(). Never throws:
- * any failure (service down, network, quota) degrades to a normal download.
+ * a cache entry was restored; the caller re-checks via tc.find(). Never throws.
  */
 export async function restoreCrossJobCache(version: string, arch: string): Promise<boolean> {
   if (!cache.isFeatureAvailable()) {
@@ -47,21 +48,13 @@ export async function restoreCrossJobCache(version: string, arch: string): Promi
   const key = crossJobCacheKey(version, arch);
   try {
     const { dir, marker } = toolCachePaths(version, arch);
-    const matched = await cache.restoreCache([dir, marker], key);
-    if (!matched) {
+    // No restoreKeys and the paths embed the version, so a hit is always this
+    // version's entry — no prefix-match check needed.
+    if (!(await cache.restoreCache([dir, marker], key))) {
       core.debug(`Cross-job cache miss (key: ${key})`);
       return false;
     }
-    if (matched !== key) {
-      // Prefix match on a different version's entry (the service matches keys
-      // by prefix). The extracted bytes land under *that* version's tool-cache
-      // path, which is harmless — but for this version it's a miss.
-      core.warning(
-        `Cross-job cache prefix-matched a different entry (requested "${key}", got "${matched}"); falling back to download.`,
-      );
-      return false;
-    }
-    core.debug(`Cross-job cache restored with key: ${matched}`);
+    core.debug(`Cross-job cache restored with key: ${key}`);
     return true;
   } catch (err) {
     core.warning(
@@ -72,9 +65,8 @@ export async function restoreCrossJobCache(version: string, arch: string): Promi
 }
 
 /**
- * Save a freshly installed tool-cache entry for other jobs. Best-effort: a
- * parallel matrix job may have saved the same key first (ReserveCacheError),
- * and quota/network failures are never worth failing the job over.
+ * Save a freshly installed tool-cache entry for other jobs. Best-effort: never
+ * throws, and never fails the job.
  */
 export async function saveCrossJobCache(version: string, arch: string): Promise<void> {
   if (!cache.isFeatureAvailable()) {
@@ -86,31 +78,14 @@ export async function saveCrossJobCache(version: string, arch: string): Promise<
   const key = crossJobCacheKey(version, arch);
   try {
     const { dir, marker } = toolCachePaths(version, arch);
-    const cacheId = await cache.saveCache([dir, marker], key);
-    if (cacheId === -1) {
-      // saveCache returns -1 when the cache service declines to save (e.g.
-      // read-only cache mode on a fork PR) without throwing. This is expected
-      // for some runners, so log at info level, not warning.
+    // -1 covers a parallel job's reservation, a read-only token and transient
+    // failures alike; the library has already logged which one at its level.
+    if ((await cache.saveCache([dir, marker], key)) === -1) {
       core.info(`Task ${version} was not saved to the cross-job cache (key: ${key}).`);
       return;
     }
     core.info(`Saved task ${version} to the cross-job cache (key: ${key}).`);
   } catch (err) {
-    // ReserveCacheError (another job reserved the same key first) and
-    // CacheWriteDeniedError (read-only cache token) are expected races/policies;
-    // only genuine unexpected failures are warnings.
-    if (err instanceof cache.CacheWriteDeniedError) {
-      core.info(
-        `Task ${version} was not saved to the cross-job cache because cache writes are denied for this workflow (key: ${key}).`,
-      );
-      return;
-    }
-    if (err instanceof cache.ReserveCacheError) {
-      core.info(
-        `Task ${version} was not saved to the cross-job cache because the key is already reserved (key: ${key}).`,
-      );
-      return;
-    }
     core.warning(`Failed to save cross-job cache: ${errorMessage(err)}`);
   }
 }
