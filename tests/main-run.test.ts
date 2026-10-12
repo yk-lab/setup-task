@@ -1,7 +1,9 @@
 import * as tc from '@actions/tool-cache';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { verifyChecksum } from '../src/checksum';
 import { restoreCrossJobCache, saveCrossJobCache } from '../src/cross-cache';
 import { downloadAsset } from '../src/download';
+import { extract } from '../src/install';
 import { run } from '../src/main';
 
 // run()'s cross-job cache wiring (#88): every module boundary is mocked so the
@@ -66,11 +68,14 @@ vi.mock('../src/checksum', () => ({
 }));
 vi.mock('../src/install', () => ({ extract: vi.fn(async () => '/tmp/extracted') }));
 vi.mock('../src/cross-cache', () => ({
-  restoreCrossJobCache: vi.fn(async () => false),
+  restoreCrossJobCache: vi.fn(async () => undefined),
   saveCrossJobCache: vi.fn(async () => {}),
 }));
 
 const FOUND = '/tc/task/3.51.1/amd64';
+const ASSET = 'task_linux_amd64.tar.gz';
+const DOWNLOADED = '/tmp/task_linux_amd64.tar.gz';
+const RESTORED = '/runner-temp/setup-task-cache/3.51.1/task_linux_amd64.tar.gz';
 
 async function outputs(): Promise<Record<string, string>> {
   const core = await import('@actions/core');
@@ -116,56 +121,58 @@ describe('run() cross-job cache wiring', () => {
     expect(await outputs()).toMatchObject({ 'cache-hit': 'false' });
   });
 
-  it('cache enabled + restore hit: skips the download and does not re-save', async () => {
+  it('cache enabled + verified restore: installs the restored archive, no download or re-save', async () => {
     boolInputs.cache = true;
-    // First find() misses; the find() after the restore hits.
-    vi.mocked(tc.find).mockReturnValueOnce('').mockReturnValueOnce(FOUND);
-    vi.mocked(restoreCrossJobCache).mockResolvedValueOnce(true);
+    vi.mocked(restoreCrossJobCache).mockResolvedValueOnce(RESTORED);
 
     await run();
 
-    expect(restoreCrossJobCache).toHaveBeenCalledWith('3.51.1', 'amd64');
+    expect(restoreCrossJobCache).toHaveBeenCalledWith('3.51.1', 'amd64', ASSET);
+    expect(verifyChecksum).toHaveBeenCalledWith(RESTORED, 'deadbeef');
+    expect(extract).toHaveBeenCalledWith(RESTORED, 'tar.gz');
     expect(downloadAsset).not.toHaveBeenCalled();
     expect(saveCrossJobCache).not.toHaveBeenCalled();
-    expect(await outputs()).toMatchObject({
-      version: '3.51.1',
-      'cache-hit': 'true',
-      'task-path': `${FOUND}/task`,
-    });
+    expect(await outputs()).toMatchObject({ version: '3.51.1', 'cache-hit': 'true' });
   });
 
-  it('cache enabled + restored entry fails tc.find re-check: warns and downloads', async () => {
+  it('cache enabled + restored archive fails the checksum: warns, downloads and saves', async () => {
     boolInputs.cache = true;
-    vi.mocked(tc.find).mockReturnValue(''); // never completes
-    vi.mocked(restoreCrossJobCache).mockResolvedValueOnce(true);
+    vi.mocked(restoreCrossJobCache).mockResolvedValueOnce(RESTORED);
+    vi.mocked(verifyChecksum).mockImplementationOnce(() => {
+      throw new Error('Checksum mismatch');
+    });
     const core = await import('@actions/core');
 
     await run();
 
-    expect(core.warning).toHaveBeenCalledWith(expect.stringContaining('incomplete'));
-    expect(downloadAsset).toHaveBeenCalledOnce();
-    expect(saveCrossJobCache).toHaveBeenCalledWith('3.51.1', 'amd64');
+    expect(core.warning).toHaveBeenCalledWith(expect.stringContaining('failed verification'));
+    expect(verifyChecksum).toHaveBeenLastCalledWith(DOWNLOADED, 'deadbeef');
+    expect(extract).toHaveBeenCalledWith(DOWNLOADED, 'tar.gz');
+    expect(saveCrossJobCache).toHaveBeenCalledWith('3.51.1', 'amd64', ASSET, DOWNLOADED);
     expect(await outputs()).toMatchObject({ 'cache-hit': 'false' });
   });
 
-  it('cache enabled + restore miss: downloads, then saves for other jobs', async () => {
+  it('cache enabled + restore miss: downloads, then saves the verified archive', async () => {
     boolInputs.cache = true;
 
     await run();
 
     expect(downloadAsset).toHaveBeenCalledOnce();
-    expect(saveCrossJobCache).toHaveBeenCalledWith('3.51.1', 'amd64');
+    expect(saveCrossJobCache).toHaveBeenCalledWith('3.51.1', 'amd64', ASSET, DOWNLOADED);
     expect(await outputs()).toMatchObject({ 'cache-hit': 'false' });
   });
 
-  it('cache enabled + skip-checksum: downloads but does not save to cross-job cache', async () => {
+  it('cache enabled + skip-checksum: never restores or saves the cross-job cache', async () => {
     boolInputs.cache = true;
     boolInputs['skip-checksum'] = true;
+    const core = await import('@actions/core');
 
     await run();
 
+    expect(restoreCrossJobCache).not.toHaveBeenCalled();
     expect(downloadAsset).toHaveBeenCalledOnce();
     expect(saveCrossJobCache).not.toHaveBeenCalled();
+    expect(core.warning).toHaveBeenCalledWith(expect.stringContaining('skip-checksum=true'));
     expect(await outputs()).toMatchObject({ 'cache-hit': 'false' });
   });
 });

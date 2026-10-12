@@ -107,70 +107,88 @@ export async function run(): Promise<void> {
 
     if (cacheHit) {
       core.info(`Restored task ${version} from tool cache.`);
-    } else if (crossJobCache && (await restoreCrossJobCache(version, asset.arch))) {
-      // 2b. Optional cross-job (actions/cache) restore (#88). Re-check via
-      // tc.find() so the .complete marker semantics stay authoritative.
-      toolDir = tc.find(TOOL_NAME, version, asset.arch);
-      if (toolDir) {
-        cacheHit = true;
-        summary.cache = 'hit (actions/cache)';
-        core.info(`Restored task ${version} from the cross-job cache.`);
-      } else {
-        core.warning(
-          'Cross-job cache restored but the tool-cache entry is incomplete; falling back to download.',
-        );
-      }
-    }
-
-    if (!cacheHit) {
+    } else {
       const tag = `v${version}`;
-      const url = releaseDownloadUrl(tag, asset.assetName);
+      // Skip the cross-job cache entirely without checksum verification: a
+      // restored archive is only trustworthy once checked against the release.
+      const useCrossJobCache = crossJobCache && !skipChecksum;
+      if (crossJobCache && skipChecksum) {
+        core.warning('Cross-job cache (cache=true) is disabled because skip-checksum=true.');
+      }
 
-      summary.phase = 'downloading release asset';
-      // 3. Download (authenticated + retry).
-      core.info(`Downloading ${url}`);
-      const archivePath = await withRetry(() => downloadAsset(url, token || undefined), {
-        retries,
-        baseMs: retryBaseMs,
-        name: 'download asset',
-      });
-
-      summary.phase = 'verifying checksum';
-      // 4. Checksum verification.
-      if (skipChecksum) {
-        summary.checksum = 'skipped';
-        core.warning('Checksum verification skipped (skip-checksum=true).');
-      } else {
-        const expected = await withRetry(
-          () => fetchChecksum(tag, asset.assetName, token || undefined),
-          {
-            retries,
-            baseMs: retryBaseMs,
-            name: 'fetch checksums',
-          },
-        );
+      let expected: string | undefined;
+      if (!skipChecksum) {
+        summary.phase = 'fetching checksums';
+        expected = await withRetry(() => fetchChecksum(tag, asset.assetName, token || undefined), {
+          retries,
+          baseMs: retryBaseMs,
+          name: 'fetch checksums',
+        });
         if (!expected) {
           throw new Error(
             `Checksum for ${asset.assetName} not found in the release checksums file. ` +
               'Set skip-checksum=true to bypass (not recommended).',
           );
         }
-        verifyChecksum(archivePath, expected);
-        summary.checksum = 'verified (SHA256)';
-        core.info('Checksum verified (SHA256).');
+      }
+
+      // 2b. Optional cross-job (actions/cache) restore (#88). The restored
+      // archive is untrusted: it must pass the same checksum as a download.
+      let archivePath: string | undefined;
+      if (useCrossJobCache && expected) {
+        summary.phase = 'restoring cross-job cache';
+        const restored = await restoreCrossJobCache(version, asset.arch, asset.assetName);
+        if (restored) {
+          try {
+            verifyChecksum(restored, expected);
+            archivePath = restored;
+            cacheHit = true;
+            summary.cache = 'hit (actions/cache)';
+            summary.checksum = 'verified (SHA256)';
+            core.info(`Restored task ${version} from the cross-job cache (checksum verified).`);
+          } catch (err) {
+            core.warning(
+              `Cross-job cache entry for task ${version} failed verification ` +
+                `(${errorMessage(err)}); ignoring it and downloading. ` +
+                'The cache entry may be corrupt or tampered with.',
+            );
+          }
+        }
+      }
+
+      if (!archivePath) {
+        const url = releaseDownloadUrl(tag, asset.assetName);
+        summary.phase = 'downloading release asset';
+        // 3. Download (authenticated + retry).
+        core.info(`Downloading ${url}`);
+        const downloaded = await withRetry(() => downloadAsset(url, token || undefined), {
+          retries,
+          baseMs: retryBaseMs,
+          name: 'download asset',
+        });
+
+        summary.phase = 'verifying checksum';
+        // 4. Checksum verification.
+        if (expected) {
+          verifyChecksum(downloaded, expected);
+          summary.checksum = 'verified (SHA256)';
+          core.info('Checksum verified (SHA256).');
+        } else {
+          summary.checksum = 'skipped';
+          core.warning('Checksum verification skipped (skip-checksum=true).');
+        }
+
+        // 5b. Share the verified archive with other jobs (best-effort, #88).
+        if (useCrossJobCache) {
+          await saveCrossJobCache(version, asset.arch, asset.assetName, downloaded);
+        }
+        archivePath = downloaded;
       }
 
       summary.phase = 'extracting & caching';
       // 5. Extract + cache.
       const extractedDir = await extract(archivePath, asset.ext);
       toolDir = await tc.cacheDir(extractedDir, TOOL_NAME, version, asset.arch);
-
-      // 5b. Share the fresh install with other jobs (best-effort, #88).
-      // Never cache an unverified binary: skip-checksum is an explicit escape
-      // hatch for the current job, not permission to weaken other jobs.
-      if (crossJobCache && !skipChecksum) {
-        await saveCrossJobCache(version, asset.arch);
-      }
     }
 
     summary.phase = 'installing onto PATH';
