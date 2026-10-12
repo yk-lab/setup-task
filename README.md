@@ -83,6 +83,8 @@ steps:
 
 The cache key is `setup-task-<os>-<arch>-<resolved-version>`. The release archive is cached, and a restored archive is verified against the release's `task_checksums.txt` exactly like a fresh download, so a tampered cache entry is rejected (with a warning) rather than executed. Parallel jobs that attempt to save the same key skip the save without failing. The cache is disabled when `skip-checksum: true`. This does **not** remove the GitHub API call used to resolve `latest`/ranges or the small checksums-file download, but it eliminates the release-asset download on cache hits.
 
+> **Security:** like any `actions/cache` restore, a poisoned cache entry can write files on the runner when it is extracted, before this action verifies the archive. Do not enable `cache` in release/publishing jobs or other jobs with secrets or `id-token: write`; setting `cache-mode: none` on those jobs or workflows also disables the restore.
+
 > **Note:** on the first workflow run with an empty cache, concurrently starting matrix jobs all restore before any peer saves, so each may download once. The cache benefits subsequent workflow runs, or jobs that are explicitly ordered (e.g. via `needs`) so a prime job saves first.
 
 ## Outputs

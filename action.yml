@@ -28,7 +28,7 @@ inputs:
     required: false
     default: "false"
   cache:
-    description: "Share the release archive across jobs via actions/cache. Restored archives are SHA256-verified; ignored when skip-checksum is true."
+    description: "Share the release archive across jobs via actions/cache. Restored archives are SHA256-verified; ignored when skip-checksum is true. Do not enable in release/publishing jobs."
     required: false
     default: "false"
   retries:

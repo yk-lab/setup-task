@@ -29,7 +29,15 @@ The cached path is `${RUNNER_TEMP}/setup-task-cache/<version>/<asset>`. It must 
 
 ### Why the archive, not the extracted tool dir
 
-Anything that can write this repository's cache — any workflow running on the default branch, including one compromised through `pull_request_target` or a script injection — can plant an entry under the predictable key. The restored `task` binary would then run in jobs with more privileges (secrets, `id-token`). Storing a hash next to the entry does not help, because the attacker writes both. The only trusted reference is the release's `task_checksums.txt`, and it hashes the archive, so the archive is what we cache.
+Anything that can write this repository's default-branch cache scope can plant an entry under the predictable key: GitHub limits that to trusted triggers (`push`, `workflow_dispatch`, `schedule`, …) or an explicit `cache-mode: write`, but a script injection or a compromised dependency in such a run is enough. The restored `task` binary would then run in jobs with more privileges (secrets, `id-token`). Storing a hash next to the entry does not help, because the attacker writes both. The only trusted reference is the release's `task_checksums.txt`, and it hashes the archive, so the archive is what we cache.
+
+### Accepted residual risk: the restore itself
+
+Verification only covers the `task` archive. `@actions/cache` extracts the restored tar with `-P` (absolute paths and `..` kept), so a crafted entry can write arbitrary files on the runner during `restoreCache()`, before we verify anything. GitHub documents this for every cache user ("Cache contents are not signed or verified … Extracted caches may modify files that are subsequently executed"). We accept it, like `actions/cache` and the setup-* actions do, rather than re-implementing the restore on `@actions/cache` internals:
+
+- `cache` defaults to `false`.
+- The README tells users not to enable it in release/publishing jobs, which is also what zizmor's `cache-poisoning` audit flags.
+- `cache-mode: none` at the workflow/job level disables the restore, because `@actions/cache` honours it.
 
 ## Consequences
 
