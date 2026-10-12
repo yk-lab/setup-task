@@ -81,7 +81,7 @@ steps:
   - run: task --version
 ```
 
-The cache key is `setup-task-<os>-<arch>-<resolved-version>-` (trailing `-` prevents the cache service's prefix matching from restoring a longer version, e.g. `3.51.10` for a `3.51.1` request). Each resolved version is saved once when checksum verification is enabled; parallel jobs that attempt to save the same key gracefully ignore the conflict. This does **not** remove the GitHub API call used to resolve `latest`/ranges, but it eliminates the release-asset and checksum-file downloads on cache hits.
+The cache key is `setup-task-<os>-<arch>-<resolved-version>`. Each resolved version is saved once when checksum verification is enabled; parallel jobs that attempt to save the same key skip the save without failing. This does **not** remove the GitHub API call used to resolve `latest`/ranges, but it eliminates the release-asset and checksum-file downloads on cache hits.
 
 > **Note:** on the first workflow run with an empty cache, concurrently starting matrix jobs all restore before any peer saves, so each may download once. The cache benefits subsequent workflow runs, or jobs that are explicitly ordered (e.g. via `needs`) so a prime job saves first.
 

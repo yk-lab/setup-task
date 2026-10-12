@@ -19,10 +19,10 @@ Alternatives considered:
 
 Add a `cache` input (default `false`). When `cache: true`:
 
-1. **Before downloading**, try `actions/cache.restoreCache` with key `setup-task-<os>-<arch>-<resolved-version>-`. The trailing `-` terminates the version: the cache service matches keys by prefix, so without it a request for `3.51.1` could restore a cached `3.51.10` entry. A prefix-matched (non-identical) key is treated as a miss.
+1. **Before downloading**, try `actions/cache.restoreCache` with key `setup-task-<os>-<arch>-<resolved-version>` and no restore keys. A different version's entry can never be returned: `actions/cache` also scopes every entry by a hash of its paths, and the paths embed the version.
 2. **After restoring**, re-run `@actions/tool-cache.find()` so the `.complete` marker semantics stay authoritative.
 3. **After a fresh install** (tool-cache miss + cache miss), save the tool directory and its sibling `.complete` marker to `actions/cache` with the same key.
-4. **Save is best-effort**: a parallel matrix job may have saved the same key first (`ReserveCacheError`), and quota/network failures only warn, never fail the job.
+4. **Save and restore are best-effort and never fail the job.** `actions/cache` handles its own failures (a parallel job reserving the key, a read-only token on fork PRs, network/5xx) by logging them at its own level (info / warning / error) and returning `-1` / `undefined`; it throws only `ValidationError`. The wrapper therefore branches on the return value and does not re-classify the library's errors.
 
 Cache paths are:
 
