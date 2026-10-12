@@ -14,6 +14,7 @@ record rather than editing an old one.
 | [0005](0005-archive-only-distribution.md) | Install from archives only, not OS packages | Accepted |
 | [0006](0006-dist-built-at-release.md) | Build `dist/` at release time, commit only on tags | Accepted |
 | [0007](0007-arduino-setup-task-input-compatibility.md) | Keep inputs compatible with `arduino/setup-task` | Accepted |
+| [0008](0008-cross-job-caching.md) | Cross-job cache sharing via actions/cache | Accepted |
 
 To add one: copy the shape of an existing record, take the next number, and open
 it at `Status: Proposed`.

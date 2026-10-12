@@ -11,7 +11,7 @@ A secure, reliable GitHub Action that installs the [Task](https://github.com/go-
 - 🚫 **Host-pinned** — downloads and their redirects are restricted to GitHub hosts; a redirect to any other host is refused, and the token is never forwarded off `github.com`
 - 🔐 **Authenticated by default** — uses `${{ github.token }}` so release lookups don't hit unauthenticated rate limits (the cause of intermittent "could not download" failures)
 - 🔁 **Resilient** — retries transient network failures with exponential backoff
-- ♻️ **Cached** — uses the runner tool cache to avoid re-downloading
+- ♻️ **Cached** — runner tool cache per job, plus optional actions/cache sharing across jobs
 - 🌐 **Proxy-aware** — honours `HTTP_PROXY` / `HTTPS_PROXY` / `NO_PROXY` for installs behind a corporate proxy or on self-hosted runners
 - 🟢 **Node 24 runtime** — on the current action runtime, no deprecated Node 16/20 to chase
 - 🧩 **Drop-in for `arduino/setup-task`** — the `version` / `repo-token` inputs match, so migrating is a one-line change ([see below](#migrating-from-arduinosetup-task))
@@ -57,10 +57,33 @@ Everything else is unchanged: the extra inputs (`architecture`, `check-latest`, 
 | `architecture` | runner's arch | Override the CPU architecture (e.g. `amd64`, `arm64`). |
 | `check-latest` | `false` | For ranges, always re-resolve the newest matching release. |
 | `skip-checksum` | `false` | Disable SHA256 verification (not recommended). |
+| `cache` | `false` | Share the installed binary across jobs via actions/cache (`setup-task-<os>-<arch>-<version>`). |
 | `retries` | `3` | Max retries for transient network failures (version resolve, download, checksum fetch). |
 | `retry-base-ms` | `1000` | Initial backoff delay between retries, in milliseconds (doubles each attempt). |
 
 > **Tip:** pin a range like `3.x` (or an exact version) rather than `latest` for reproducible CI.
+
+### Sharing the install across jobs
+
+The runner tool cache is per-job, so each matrix leg downloads the binary by default. Set `cache: true` to share a resolved version between jobs through `actions/cache`:
+
+```yaml
+strategy:
+  matrix:
+    os: [ubuntu-latest, macos-latest]
+    task-version: ["3.51.1", "3.x"]
+
+steps:
+  - uses: yk-lab/setup-task@v1
+    with:
+      version: ${{ matrix.task-version }}
+      cache: true
+  - run: task --version
+```
+
+The cache key is `setup-task-<os>-<arch>-<resolved-version>-` (trailing `-` prevents the cache service's prefix matching from restoring a longer version, e.g. `3.51.10` for a `3.51.1` request). Each resolved version is saved once; parallel jobs that attempt to save the same key gracefully ignore the conflict. This does **not** remove the GitHub API call used to resolve `latest`/ranges, but it eliminates the release-asset and checksum-file downloads on cache hits.
+
+> **Note:** on the first workflow run with an empty cache, concurrently starting matrix jobs all restore before any peer saves, so each may download once. The cache benefits subsequent workflow runs, or jobs that are explicitly ordered (e.g. via `needs`) so a prime job saves first.
 
 ## Outputs
 
@@ -68,7 +91,7 @@ Everything else is unchanged: the extra inputs (`architecture`, `check-latest`, 
 |---|---|
 | `version` | The resolved version installed (e.g. `3.51.1`). |
 | `task-path` | Absolute path to the `task` executable. |
-| `cache-hit` | `true` if restored from the tool cache, else `false`. |
+| `cache-hit` | `true` if restored from a cache (runner tool cache or the cross-job actions/cache when `cache` is enabled), else `false`. |
 
 ## Supported platforms
 
