@@ -27,6 +27,10 @@ inputs:
     description: "Disable SHA256 verification of the downloaded archive (NOT recommended)."
     required: false
     default: "false"
+  cache:
+    description: "Share the installed tool across jobs via actions/cache (keyed by OS + arch + resolved version)."
+    required: false
+    default: "false"
   retries:
     description: "Maximum number of retries for transient network failures."
     required: false
@@ -42,7 +46,7 @@ outputs:
   task-path:
     description: "Absolute path to the installed task executable."
   cache-hit:
-    description: "Whether the tool was restored from the runner tool cache ('true'/'false')."
+    description: "Whether the tool was restored from a cache (runner tool cache, or cross-job actions/cache when 'cache' is enabled)."
 
 runs:
   using: "node24"

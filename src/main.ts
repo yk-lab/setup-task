@@ -4,6 +4,7 @@ import * as core from '@actions/core';
 import * as tc from '@actions/tool-cache';
 import { fetchChecksum, verifyChecksum } from './checksum';
 import { DEFAULT_RETRIES, DEFAULT_RETRY_BASE_MS, releaseDownloadUrl, TOOL_NAME } from './constants';
+import { restoreCrossJobCache, saveCrossJobCache } from './cross-cache';
 import { downloadAsset, withRetry } from './download';
 import { errorMessage } from './errors';
 import { createReleaseApi } from './github';
@@ -48,6 +49,7 @@ export async function run(): Promise<void> {
     const archOverride = core.getInput('architecture');
     const checkLatest = core.getBooleanInput('check-latest');
     const skipChecksum = core.getBooleanInput('skip-checksum');
+    const crossJobCache = core.getBooleanInput('cache');
     const retries = parseRetryInput(core.getInput('retries'), DEFAULT_RETRIES, 'retries');
     const retryBaseMs = parseRetryInput(
       core.getInput('retry-base-ms'),
@@ -100,12 +102,27 @@ export async function run(): Promise<void> {
     summary.phase = 'checking tool cache';
     // 2. Tool-cache lookup.
     let toolDir = tc.find(TOOL_NAME, version, asset.arch);
-    const cacheHit = Boolean(toolDir);
+    let cacheHit = Boolean(toolDir);
     summary.cache = cacheHit ? 'hit' : 'miss';
 
     if (cacheHit) {
       core.info(`Restored task ${version} from tool cache.`);
-    } else {
+    } else if (crossJobCache && (await restoreCrossJobCache(version, asset.arch))) {
+      // 2b. Optional cross-job (actions/cache) restore (#88). Re-check via
+      // tc.find() so the .complete marker semantics stay authoritative.
+      toolDir = tc.find(TOOL_NAME, version, asset.arch);
+      if (toolDir) {
+        cacheHit = true;
+        summary.cache = 'hit (actions/cache)';
+        core.info(`Restored task ${version} from the cross-job cache.`);
+      } else {
+        core.warning(
+          'Cross-job cache restored but the tool-cache entry is incomplete; falling back to download.',
+        );
+      }
+    }
+
+    if (!cacheHit) {
       const tag = `v${version}`;
       const url = releaseDownloadUrl(tag, asset.assetName);
 
@@ -147,6 +164,13 @@ export async function run(): Promise<void> {
       // 5. Extract + cache.
       const extractedDir = await extract(archivePath, asset.ext);
       toolDir = await tc.cacheDir(extractedDir, TOOL_NAME, version, asset.arch);
+
+      // 5b. Share the fresh install with other jobs (best-effort, #88).
+      // Never cache an unverified binary: skip-checksum is an explicit escape
+      // hatch for the current job, not permission to weaken other jobs.
+      if (crossJobCache && !skipChecksum) {
+        await saveCrossJobCache(version, asset.arch);
+      }
     }
 
     summary.phase = 'installing onto PATH';
