@@ -102,21 +102,29 @@ describe('saveCrossJobCache', () => {
     expect(cache.saveCache).toHaveBeenCalledWith(PATHS, KEY);
   });
 
-  it('warns when the cache service declines to save (returns -1)', async () => {
+  it('logs at info level when the cache service declines to save (returns -1)', async () => {
     vi.mocked(cache.saveCache).mockResolvedValueOnce(-1);
 
     await expect(saveCrossJobCache('3.51.1', 'arm64')).resolves.toBeUndefined();
-    expect(core.info).not.toHaveBeenCalled();
-    expect(core.warning).toHaveBeenCalledWith(expect.stringContaining('was not saved'));
+    expect(core.info).toHaveBeenCalledWith(expect.stringContaining('was not saved'));
+    expect(core.warning).not.toHaveBeenCalled();
   });
 
-  it('never throws: a conflicting parallel save only warns (ReserveCacheError)', async () => {
+  it('logs at info level when another job reserved the key (ReserveCacheError)', async () => {
     vi.mocked(cache.saveCache).mockRejectedValueOnce(
       new cache.ReserveCacheError('Unable to reserve cache with key'),
     );
 
     await expect(saveCrossJobCache('3.51.1', 'arm64')).resolves.toBeUndefined();
-    expect(core.warning).toHaveBeenCalledWith(expect.stringContaining('Failed to save'));
+    expect(core.info).toHaveBeenCalledWith(expect.stringContaining('already reserved'));
+    expect(core.warning).not.toHaveBeenCalled();
+  });
+
+  it('never throws: an unexpected save failure warns', async () => {
+    vi.mocked(cache.saveCache).mockRejectedValueOnce(new Error('network timeout'));
+
+    await expect(saveCrossJobCache('3.51.1', 'arm64')).resolves.toBeUndefined();
+    expect(core.warning).toHaveBeenCalledWith(expect.stringContaining('network timeout'));
   });
 
   it('warns and skips when the cache service is unavailable', async () => {

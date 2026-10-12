@@ -89,12 +89,22 @@ export async function saveCrossJobCache(version: string, arch: string): Promise<
     const cacheId = await cache.saveCache([dir, marker], key);
     if (cacheId === -1) {
       // saveCache returns -1 when the cache service declines to save (e.g.
-      // read-only cache mode on a fork PR) without throwing.
-      core.warning(`Task ${version} was not saved to the cross-job cache (key: ${key}).`);
+      // read-only cache mode on a fork PR) without throwing. This is expected
+      // for some runners, so log at info level, not warning.
+      core.info(`Task ${version} was not saved to the cross-job cache (key: ${key}).`);
       return;
     }
     core.info(`Saved task ${version} to the cross-job cache (key: ${key}).`);
   } catch (err) {
+    // ReserveCacheError (another job reserved the same key first) and
+    // CacheWriteDeniedError (read-only cache token) are expected races/policies;
+    // only genuine unexpected failures are warnings.
+    if (err instanceof cache.ReserveCacheError) {
+      core.info(
+        `Task ${version} was not saved to the cross-job cache because the key is already reserved (key: ${key}).`,
+      );
+      return;
+    }
     core.warning(`Failed to save cross-job cache: ${errorMessage(err)}`);
   }
 }
