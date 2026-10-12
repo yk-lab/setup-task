@@ -132,7 +132,11 @@ describe('run() cross-job cache wiring', () => {
     expect(extract).toHaveBeenCalledWith(RESTORED, 'tar.gz');
     expect(downloadAsset).not.toHaveBeenCalled();
     expect(saveCrossJobCache).not.toHaveBeenCalled();
-    expect(await outputs()).toMatchObject({ version: '3.51.1', 'cache-hit': 'true' });
+    expect(await outputs()).toMatchObject({
+      version: '3.51.1',
+      'cache-hit': 'true',
+      'task-path': `${FOUND}/task`,
+    });
   });
 
   it('cache enabled + restored archive fails the checksum: warns, downloads and saves', async () => {
@@ -147,6 +151,7 @@ describe('run() cross-job cache wiring', () => {
 
     expect(core.warning).toHaveBeenCalledWith(expect.stringContaining('failed verification'));
     expect(verifyChecksum).toHaveBeenLastCalledWith(DOWNLOADED, 'deadbeef');
+    expect(extract).toHaveBeenCalledOnce();
     expect(extract).toHaveBeenCalledWith(DOWNLOADED, 'tar.gz');
     expect(saveCrossJobCache).toHaveBeenCalledWith('3.51.1', 'amd64', ASSET, DOWNLOADED);
     expect(await outputs()).toMatchObject({ 'cache-hit': 'false' });
