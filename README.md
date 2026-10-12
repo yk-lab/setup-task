@@ -57,7 +57,7 @@ Everything else is unchanged: the extra inputs (`architecture`, `check-latest`, 
 | `architecture` | runner's arch | Override the CPU architecture (e.g. `amd64`, `arm64`). |
 | `check-latest` | `false` | For ranges, always re-resolve the newest matching release. |
 | `skip-checksum` | `false` | Disable SHA256 verification (not recommended). |
-| `cache` | `false` | Share the installed binary across jobs via actions/cache (`setup-task-<os>-<arch>-<version>`). |
+| `cache` | `false` | Share the installed binary across jobs via actions/cache (`setup-task-<os>-<arch>-<resolved-version>-`). |
 | `retries` | `3` | Max retries for transient network failures (version resolve, download, checksum fetch). |
 | `retry-base-ms` | `1000` | Initial backoff delay between retries, in milliseconds (doubles each attempt). |
 
@@ -81,7 +81,7 @@ steps:
   - run: task --version
 ```
 
-The cache key is `setup-task-<os>-<arch>-<resolved-version>-` (trailing `-` prevents the cache service's prefix matching from restoring a longer version, e.g. `3.51.10` for a `3.51.1` request). Each resolved version is saved once; parallel jobs that attempt to save the same key gracefully ignore the conflict. This does **not** remove the GitHub API call used to resolve `latest`/ranges, but it eliminates the release-asset and checksum-file downloads on cache hits.
+The cache key is `setup-task-<os>-<arch>-<resolved-version>-` (trailing `-` prevents the cache service's prefix matching from restoring a longer version, e.g. `3.51.10` for a `3.51.1` request). Each resolved version is saved once when checksum verification is enabled; parallel jobs that attempt to save the same key gracefully ignore the conflict. This does **not** remove the GitHub API call used to resolve `latest`/ranges, but it eliminates the release-asset and checksum-file downloads on cache hits.
 
 > **Note:** on the first workflow run with an empty cache, concurrently starting matrix jobs all restore before any peer saves, so each may download once. The cache benefits subsequent workflow runs, or jobs that are explicitly ordered (e.g. via `needs`) so a prime job saves first.
 

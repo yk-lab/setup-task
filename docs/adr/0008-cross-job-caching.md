@@ -39,4 +39,4 @@ The marker must be cached/restored alongside the directory, because `@actions/to
 - **Cache entries are trusted once saved.** We save only after the archive has passed SHA256 verification. When `skip-checksum: true` is used, the cross-job cache save is skipped so an unverified binary is never shared with other jobs. Restored entries are not re-verified — that would defeat the purpose by re-fetching the checksums file.
 - **Cache quota is consumed only when the feature is enabled.** Default workflows pay no extra cost.
 - **New dependency:** `@actions/cache` is added to the bundle.
-- **Self-hosted runners:** `cache: true` is redundant but harmless; the runner tool cache already persists, so the first `tc.find()` will hit and skip both restore and save.
+- **Self-hosted runners:** `cache: true` is redundant but harmless for versions already present in the runner tool cache; `tc.find()` will hit and skip both restore and save. A version not yet installed on that runner still goes through the cross-job restore/save path.

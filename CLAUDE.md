@@ -44,10 +44,10 @@ GitHub Actions runs the bundled `dist/index.js` directly (see `action.yml` → `
 `src/main.ts` is the orchestrator. Its `run()` executes a fixed 7-step pipeline, with two optional cross-job cache branches when `cache: true`, and the rest of `src/` is single-responsibility modules it calls:
 
 1. **Resolve version** — `version.ts` turns a spec (`latest` / exact / semver range) into a concrete version.
-2. **Tool-cache lookup (2b optional)** — `@actions/tool-cache.find()`; on hit, skip everything else. With `cache: true`, an `actions/cache` restore is attempted first and the result is re-checked via `tc.find()`.
+2. **Tool-cache lookup (2b optional)** — `@actions/tool-cache.find()`; on hit, skip everything else. On a tool-cache miss with `cache: true`, an `actions/cache` restore is attempted and the result is re-checked via `tc.find()`.
 3. **Download** — `download.ts` fetches the release asset (authenticated when a token is present).
 4. **Checksum** — `checksum.ts` fetches `task_checksums.txt`, parses it, and verifies SHA256.
-5. **Extract + cache (5b optional)** — `install.ts` unpacks; `tc.cacheDir()` stores it. With `cache: true`, the fresh entry is also saved to `actions/cache` (best-effort; parallel jobs gracefully ignore `ReserveCacheError`).
+5. **Extract + cache (5b optional)** — `install.ts` unpacks; `tc.cacheDir()` stores it. With `cache: true` and checksum verification enabled, the fresh entry is also saved to `actions/cache` (best-effort; parallel jobs gracefully ignore `ReserveCacheError`).
 6. **chmod + `addPath`** — make executable (non-Windows) and expose on `PATH`.
 7. **Outputs** — `version`, `task-path`, `cache-hit`.
 
